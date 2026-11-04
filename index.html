@@ -3,18 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1F2A44">
+<meta name="theme-color" content="#2B2350">
 <title>Biblioteca del CEIP Fernando IV</title>
+<link rel="preload" as="image" href="img/biblioteca.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --papel:#F5EFE4; --papel2:#EDE5D6; --blanco:#FFFDF8;
-  --tinta:#1F2A44; --tinta2:#4A5675; --suave:#8A8FA0;
-  --linea:#E2D8C5; --musgo:#3F7A5A; --musgo-bg:#E3F0E7;
-  --teja:#C2603D; --teja-bg:#F7E3DA; --oro:#D9A441;
-  --radio:22px; --sombra:0 1px 2px rgba(31,42,68,.06),0 8px 24px rgba(31,42,68,.08);
+  --papel:#F6F2EC; --papel2:#ECE5F0; --blanco:#FFFEFB;
+  --tinta:#2B2350; --tinta2:#544C78; --suave:#8C87A3;
+  --linea:#E3DCEA; --musgo:#2F8550; --musgo-bg:#E2F2E6;
+  --teja:#B03A86; --teja-bg:#F8E3F0; --oro:#E2AE34; --cielo:#3E8FD8;
+  --radio:22px; --sombra:0 1px 2px rgba(43,35,80,.06),0 8px 24px rgba(43,35,80,.09);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--papel);color:var(--tinta);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.45}
@@ -36,21 +37,22 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch}
 .grid2>.card{margin-top:0!important;height:100%}
 .etq{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
-.hero{background:var(--tinta);color:var(--papel);padding:22px}
-.hero .etq{color:#AEB6CC}
+.hero{color:#fff;padding:150px 22px 22px;background:
+  linear-gradient(180deg,rgba(43,35,80,0) 0%,rgba(43,35,80,.35) 28%,rgba(43,35,80,.9) 52%,#2B2350 70%),
+  url(img/biblioteca.webp) 68% 35%/cover no-repeat,var(--tinta)}
+.hero .etq{color:#F3D27A}
 .hero .estado{font-family:Fraunces,serif;font-size:32px;margin:6px 0 2px}
-.hero .det{color:#D3D8E5;font-size:15px;min-height:22px}
-.hero .deco{position:absolute;right:-30px;top:-30px;width:140px;height:140px;border-radius:50%;border:22px solid rgba(217,164,65,.18)}
+.hero .det{color:#E4DEF3;font-size:15px;min-height:22px}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:13px;font-weight:600}
 .pill.libre{background:var(--musgo-bg);color:var(--musgo)}
 .pill.ocupada{background:var(--teja-bg);color:var(--teja)}
-.pill.neutra{background:rgba(255,255,255,.12);color:#E6E9F2}
+.pill.neutra{background:rgba(255,255,255,.14);color:#F1EEF9}
 .punto{width:8px;height:8px;border-radius:50%;background:currentColor}
 .tramos-hoy{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:18px}
 .th{background:rgba(255,255,255,.07);border-radius:14px;padding:10px 8px;text-align:center;border:1px solid rgba(255,255,255,.08)}
-.th .h{font-size:12px;color:#AEB6CC}
+.th .h{font-size:12px;color:#C9C2E0}
 .th .q{font-size:13px;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.th.ocu{background:rgba(194,96,61,.22);border-color:rgba(194,96,61,.4)}
+.th.ocu{background:rgba(176,58,134,.22);border-color:rgba(176,58,134,.4)}
 .th.act{outline:2px solid var(--oro)}
 .th.pas{opacity:.45}
 .mini{min-height:150px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;width:100%}
@@ -67,10 +69,10 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 .redondo{width:42px;height:42px;border-radius:50%;background:var(--blanco);box-shadow:var(--sombra);font-size:20px;display:grid;place-items:center}
 .cal{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .cal .dsem{text-align:center;font-size:12px;font-weight:700;color:var(--suave);padding-bottom:2px}
-.dia{background:var(--blanco);border-radius:14px;aspect-ratio:1/1.15;padding:8px 7px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 2px rgba(31,42,68,.06);border:2px solid transparent;text-align:left}
+.dia{background:var(--blanco);border-radius:14px;aspect-ratio:1/1.15;padding:8px 7px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 2px rgba(43,35,80,.06);border:2px solid transparent;text-align:left}
 .dia .num{font-weight:700;font-size:15px}
 .dia .barras{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
-.dia .barras i{height:6px;border-radius:3px;background:#CFE3D6}
+.dia .barras i{height:6px;border-radius:3px;background:#C9E7D2}
 .dia .barras i.o{background:var(--teja)}
 .dia.hoy{border-color:var(--tinta)}
 .dia.pasado{opacity:.45}
@@ -126,21 +128,21 @@ textarea{min-height:120px;resize:vertical}
 .reservar-form input{padding:10px 12px}
 
 /* Barra inferior */
-.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 12px);width:min(530px,calc(100% - 28px));background:rgba(31,42,68,.96);backdrop-filter:blur(10px);border-radius:24px;display:grid;grid-template-columns:repeat(4,1fr);padding:8px;z-index:20;box-shadow:0 10px 30px rgba(31,42,68,.3)}
-.tabbar button{color:#9AA3BC;font-size:11px;font-weight:600;padding:6px 0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 12px);width:min(530px,calc(100% - 28px));background:rgba(43,35,80,.96);backdrop-filter:blur(10px);border-radius:24px;display:grid;grid-template-columns:repeat(4,1fr);padding:8px;z-index:20;box-shadow:0 10px 30px rgba(43,35,80,.3)}
+.tabbar button{color:#A9A2C6;font-size:11px;font-weight:600;padding:6px 0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .tabbar button .e{font-size:20px;filter:grayscale(1);opacity:.75}
 .tabbar button.on{color:var(--papel);background:rgba(255,255,255,.08)}
 .tabbar button.on .e{filter:none;opacity:1}
 
 /* Hoja inferior */
-.velo{position:fixed;inset:0;background:rgba(20,25,40,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.velo{position:fixed;inset:0;background:rgba(25,18,48,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
 .velo.on{opacity:1;pointer-events:auto}
 .hoja{position:fixed;left:50%;bottom:0;transform:translate(-50%,100%);width:min(560px,100%);max-height:88vh;overflow:auto;background:var(--blanco);border-radius:26px 26px 0 0;padding:10px 20px calc(env(safe-area-inset-bottom) + 24px);z-index:41;transition:transform .25s ease}
 .hoja.on{transform:translate(-50%,0)}
 .hoja .asa{width:44px;height:5px;border-radius:3px;background:var(--linea);margin:4px auto 14px}
 .hoja h2{font-size:23px;margin-bottom:4px}
 
-.fab{position:fixed;right:max(18px,calc(50% - 262px));bottom:calc(env(safe-area-inset-bottom) + 96px);background:var(--teja);color:#fff;font-weight:700;padding:14px 20px;border-radius:999px;box-shadow:0 8px 20px rgba(194,96,61,.4);z-index:15}
+.fab{position:fixed;right:max(18px,calc(50% - 262px));bottom:calc(env(safe-area-inset-bottom) + 96px);background:var(--teja);color:#fff;font-weight:700;padding:14px 20px;border-radius:999px;box-shadow:0 8px 20px rgba(176,58,134,.4);z-index:15}
 .aviso{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translate(-50%,-150%);background:var(--tinta);color:var(--papel);padding:12px 18px;border-radius:14px;font-size:14px;font-weight:500;z-index:60;transition:transform .25s;max-width:calc(100% - 32px);text-align:center}
 .aviso.on{transform:translate(-50%,0)}
 .aviso.error{background:var(--teja)}
@@ -296,12 +298,11 @@ function vInicio(){
 
   return cabecera() + `
   <button class="card hero" style="width:100%;text-align:left" onclick="irHoy()">
-    <div class="deco"></div>
-    <div class="etq">La biblioteca ahora</div>
+        <div class="etq">La biblioteca ahora</div>
     <div class="estado">${sit.estado}</div>
     <div class="det">${esc(sit.det)}</div>
     ${pills ? `<div class="tramos-hoy">${pills}</div>` : ''}
-    <div class="fila" style="margin-top:16px"><span class="pill neutra">Ver calendario completo</span><span class="ir" style="color:#AEB6CC">›</span></div>
+    <div class="fila" style="margin-top:16px"><span class="pill neutra">Ver calendario completo</span><span class="ir" style="color:#C9C2E0">›</span></div>
   </button>
 
   <div class="grid2" style="margin-top:14px">
@@ -357,7 +358,7 @@ function vCalendario(){
       ${fest ? `<span class="fl">${esc((fest.motivo || 'Festivo').slice(0,14))}</span>` : `<span class="barras">${barras}</span>`}</button>`;
   }
   return cabecera('Reservas') + navMes(y, m) + `<div class="cal">${celdas}</div>
-    <div class="leyenda"><span><i style="background:#CFE3D6"></i>Libre</span><span><i style="background:var(--teja)"></i>Reservada</span></div>
+    <div class="leyenda"><span><i style="background:#C9E7D2"></i>Libre</span><span><i style="background:var(--teja)"></i>Reservada</span></div>
     <p class="ayuda" style="text-align:center;margin-top:14px">Cada barra es una sesión: 9:30 · 10:30 · 12:00 · 13:00</p>
     ${!esMaestro() ? '<p class="ayuda" style="text-align:center">Solo el profesorado puede reservar.</p>' : ''}`;
 }
