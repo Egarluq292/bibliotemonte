@@ -697,7 +697,26 @@ async function moderar(tipo, id, decision){
 }
 
 /* ============ ARRANQUE ============ */
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+// Actualización automática: si hay versión nueva, la app se recarga sola (sin interrumpir si hay algo abierto).
+if ('serviceWorker' in navigator) {
+  const habiaControl = !!navigator.serviceWorker.controller;
+  let recargando = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!habiaControl || recargando) return;
+    const recargar = () => { recargando = true; sessionStorage.setItem('bib_actualizada', '1'); location.reload(); };
+    if (!$('#hoja').classList.contains('on')) recargar();
+    else { const t = setInterval(() => { if (!$('#hoja').classList.contains('on')) { clearInterval(t); recargar(); } }, 2000); }
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+      const buscar = () => reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); });
+      setInterval(buscar, 15 * 60 * 1000);
+    } catch(e) {}
+  });
+  if (sessionStorage.getItem('bib_actualizada')) { sessionStorage.removeItem('bib_actualizada'); setTimeout(() => aviso('App actualizada ✓'), 600); }
+}
 pintar();
 refrescar();
 if (esMaestro()) cargarClases();
