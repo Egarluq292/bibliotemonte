@@ -164,6 +164,14 @@ textarea{min-height:120px;resize:vertical}
 .ico-app{width:54px;height:54px;border-radius:14px;flex-shrink:0;box-shadow:0 4px 12px rgba(43,35,80,.25)}
 .num-paso{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--tinta);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
 .revisar{width:100%;display:flex;align-items:center;gap:12px;background:var(--teja);color:#fff;margin-bottom:14px;padding:14px 16px}
+.guia-acceso{width:100%;display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.guia-paso h3{font-size:20px}
+.guia-texto{margin-top:10px;font-size:15px;color:var(--tinta2)}
+.guia-texto p{margin-top:8px}
+.guia-texto ul,.guia-texto ol{margin:8px 0 0 20px}
+.guia-texto li{margin-top:5px}
+.guia-texto b{color:var(--tinta)}
+.captura{display:block;width:100%;max-width:340px;margin:16px auto 2px;border-radius:18px;border:1px solid var(--linea);box-shadow:0 6px 18px rgba(43,35,80,.12)}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -270,7 +278,7 @@ function pintar(){
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === S.vista));
   const app = $('#app');
   if (!S.estado) { app.innerHTML = cabecera() + '<div class="cargando">Cargando la biblioteca…</div>'; return; }
-  const vistas = { inicio: vInicio, calendario: vCalendario, buzon: vBuzon, perfil: vPerfil };
+  const vistas = { inicio: vInicio, calendario: vCalendario, buzon: vBuzon, perfil: vPerfil, guia: vGuia };
   app.innerHTML = vistas[S.vista]();
   const fab = document.querySelector('.fab'); if (fab) fab.onclick = nuevoMensaje;
 }
@@ -544,16 +552,19 @@ async function enviarMensaje(res){
 /* ============ PERFIL ============ */
 function vPerfil(){
   let html = cabecera('Perfil');
-  if (esMaestro()) return html + perfilMaestro() + `<div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
+  if (esMaestro()) return html + `<button class="card guia-acceso" onclick="ir('guia')"><span class="icono">📘</span>
+      <span style="flex:1;text-align:left"><b>Guía para el profesorado</b><span class="ayuda" style="display:block;margin-top:2px">Cómo reservar, crear códigos de clase y revisar comentarios</span></span><span class="ir">›</span></button>`
+    + perfilMaestro() + `<div style="margin-top:14px">${tarjetaCompartir()}</div><div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
   if (S.alumno) return html + `<div class="card"><div class="etq">Alumno/a</div><h2 style="margin-top:4px">${esc(S.alumno.alias)}</h2>
       <p class="ayuda">Código de clase: <span class="codigo">${esc(S.alumno.codigoClase)}</span></p>
       <p class="ayuda">Puedes escribir sugerencias y reseñas de libros. Las reservas las hace tu maestro o maestra.</p>
-      <button class="btn sec" onclick="salirAlumno()">Cambiar de usuario</button></div>${tarjetaInstalar(false)}`;
+      <button class="btn sec" onclick="salirAlumno()">Cambiar de usuario</button></div>${tarjetaCompartir()}${tarjetaInstalar(false)}`;
   return html + `<p class="ayuda" style="font-size:15px;margin-bottom:14px;text-align:center">¿Quién eres?</p>
     <div class="roles">
       <button class="card rol" onclick="formAlumno()"><div class="e">🎒</div><h3>Alumno/a</h3><p>Escribe sugerencias y reseñas</p></button>
       <button class="card rol" onclick="formMaestro('entrar')"><div class="e">🍎</div><h3>Maestro/a</h3><p>Reserva la biblioteca</p></button>
-    </div><div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
+    </div><div style="margin-top:14px">${tarjetaCompartir()}</div><div style="margin-top:14px">${tarjetaInstalar(false)}</div>
+    <button class="btn sec" style="margin-top:14px" onclick="ir('guia')">📘 Guía para el profesorado</button>`;
 }
 
 function formAlumno(){
@@ -627,6 +638,41 @@ function perfilMaestro(){
 
     <button class="btn sec" onclick="formClave()">Cambiar mi clave</button>
     <button class="btn sec" style="margin-top:10px" onclick="salirMaestro()">Cerrar sesión</button>`;
+}
+
+/* ============ GUÍA PARA EL PROFESORADO ============ */
+function vGuia(){
+  const paso = (n, titulo, texto, img) => `<section class="card guia-paso">
+      <div class="fila" style="justify-content:flex-start;gap:12px"><span class="num-paso">${n}</span><h3>${titulo}</h3></div>
+      <div class="guia-texto">${texto}</div>
+      ${img ? `<img class="captura" src="img/guia/${img}.webp" alt="" loading="lazy">` : ''}
+    </section>`;
+  return `<header class="cab"><button class="redondo" onclick="ir('perfil')">‹</button>
+      <div style="flex:1;text-align:center"><div class="centro">CEIP Fernando IV</div><div class="t" style="font-size:24px">Guía del profesorado</div></div>
+      <span style="width:42px"></span></header>
+    <p class="ayuda" style="text-align:center;font-size:15px;margin:-4px 0 18px">Todo lo que necesitas en ocho pasos.</p>
+    ${paso(1, 'Darte de alta', `<p>Ve a <b>Perfil → Maestro/a → «Es mi primera vez»</b>.</p>
+      <ul><li>Escribe el <b>código de centro</b>: te lo da el administrador.</li><li>Pon tu <b>nombre y apellido</b> tal como quieres que salgan en las reservas.</li><li>Inventa una <b>clave</b> de al menos 4 caracteres. Nadie más la ve.</li></ul>
+      <p>Solo se hace una vez. En otro dispositivo, usa <b>«Entrar»</b> con tu nombre y tu clave.</p>`, 'alta')}
+    ${paso(2, 'Ver si la biblioteca está libre', `<p>En <b>Inicio</b> verás al momento si está <b>libre u ocupada</b> y por quién.</p>
+      <p>Las cuatro casillas son las sesiones del día. La que pone <b>«Ahora»</b> es la que está en curso.</p>`, 'inicio')}
+    ${paso(3, 'Consultar el calendario', `<p>En la pestaña <b>Reservas</b> está el mes completo, de lunes a viernes.</p>
+      <p>Cada día tiene <b>cuatro barras</b>, una por sesión (9:30 · 10:30 · 12:00 · 13:00): <b style="color:#2F8550">verde</b> = libre, <b style="color:#B03A86">magenta</b> = reservada. Usa ‹ › para cambiar de mes.</p>`, 'calendario')}
+    ${paso(4, 'Reservar', `<ol><li>Toca el día.</li><li>En una sesión libre, pulsa <b>Reservar</b>.</li><li>Elige tu clase en los botones (o escribe el motivo).</li><li>Pulsa <b>OK</b>.</li></ol>
+      <p>Si otra persona la reserva un instante antes, la app te avisa: <b>nunca habrá dos reservas a la misma hora</b>.</p>`, 'reservar')}
+    ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>pulsar dos veces</b>.</p>
+      <p>Solo puedes anular <b>tus</b> reservas. Si necesitas una hora reservada por otra persona, habla con ella.</p>`, 'anular')}
+    ${paso(6, 'Crear los códigos de tus clases', `<p>En <b>Perfil → Códigos de clase</b>, escribe el nombre y pulsa <b>Crear</b>. Crea una por cada grupo o materia que des (p. ej. «Lengua 5.º», «Cono 6.º»).</p>
+      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre, <b>sin apellidos</b>.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
+    ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
+      <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>`, 'revisar')}
+    ${paso(8, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
+      <p>El mensaje <b>no lleva el código de clase</b>: ese lo das tú en el aula.</p>`, 'compartir')}
+    <section class="card guia-paso"><h3>¿Problemas?</h3><div class="guia-texto">
+      <ul><li><b>He olvidado mi clave:</b> pide al administrador una clave provisional y luego cámbiala en <b>Perfil → Cambiar mi clave</b>.</li>
+      <li><b>No veo los cambios:</b> cierra la app y ábrela de nuevo; se actualiza sola.</li>
+      <li><b>Se queda cargando:</b> comprueba la conexión a internet.</li></ul></div></section>
+    <button class="btn sec" style="margin-top:14px" onclick="ir('perfil')">Volver al perfil</button>`;
 }
 
 /* ============ ADMINISTRACIÓN ============ */
@@ -713,6 +759,30 @@ async function moderar(tipo, id, decision){
     aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado');
   } catch(e){ aviso(e.message, true); }
   await Promise.all([cargarPendientes(), cargarPublicas()]); pintar();
+}
+
+/* ============ COMPARTIR ============ */
+const URL_APP = location.origin + location.pathname.replace(/index\.html$/, '');
+const TEXTO_COMPARTIR = '📚 Biblioteca del CEIP Fernando IV\n\nConsulta cuándo está libre la biblioteca y escribe sugerencias y reseñas de libros.\nPara escribir, pide a tu maestro o maestra el código de tu clase.\n\n';
+function tarjetaCompartir(){
+  return `<div class="card"><div class="fila" style="justify-content:flex-start;gap:14px">
+      <span class="icono">📤</span>
+      <div><b>Compartir la app</b><p class="ayuda" style="margin-top:2px">Envía el enlace al alumnado o a las familias. El código de clase no se incluye: se da en clase.</p></div></div>
+    <div class="grid2" style="margin-top:14px">
+      <button class="btn" style="margin:0" onclick="compartirApp()">Compartir</button>
+      <button class="btn sec" style="margin:0" onclick="copiarEnlace()">Copiar enlace</button>
+    </div></div>`;
+}
+async function compartirApp(){
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Biblioteca del CEIP Fernando IV', text: TEXTO_COMPARTIR, url: URL_APP }); } catch(e){}
+  } else {
+    window.open('https://wa.me/?text=' + encodeURIComponent(TEXTO_COMPARTIR + URL_APP), '_blank');
+  }
+}
+async function copiarEnlace(){
+  try { await navigator.clipboard.writeText(TEXTO_COMPARTIR + URL_APP); aviso('Mensaje y enlace copiados ✓'); }
+  catch(e){ abrirHoja(`<h2>Enlace de la app</h2><p class="ayuda">Mantén pulsado para copiarlo:</p><p style="margin-top:12px;word-break:break-all"><b>${esc(URL_APP)}</b></p><button class="btn" onclick="cerrarHoja()">Hecho</button>`); }
 }
 
 /* ============ INSTALAR COMO APP ============ */
