@@ -395,9 +395,24 @@ function crearClase(p) {
   return { codigo };
 }
 
+/** Clases del maestro (todas, si es administrador) con el alumnado que ha participado en cada una. */
 function listarClases(p) {
   const m = maestroPorToken(p.token);
-  return { clases: filas('Clases').filter(c => m.rol === 'admin' || c.maestroId === m.id).map(c => ({ codigo: c.codigo, nombre: c.nombre, activa: c.activa })) };
+  const envios = filas('Sugerencias').concat(filas('Resenas')).filter(x => x.tipoAutor === 'alumno' && x.codigoClase);
+  return {
+    clases: filas('Clases').filter(c => m.rol === 'admin' || c.maestroId === m.id).map(c => {
+      const porAlumno = {};
+      envios.filter(x => x.codigoClase === c.codigo).forEach(x => {
+        const k = normalizar(x.alias);
+        const a = porAlumno[k] || (porAlumno[k] = { alias: x.alias, envios: 0, publicados: 0, ultimo: '' });
+        a.envios++;
+        if (x.estado === 'aprobada') a.publicados++;
+        if (x.creada > a.ultimo) a.ultimo = x.creada;
+      });
+      const participantes = Object.keys(porAlumno).map(k => porAlumno[k]).sort((a, b) => b.envios - a.envios);
+      return { codigo: c.codigo, nombre: c.nombre, activa: c.activa, mia: c.maestroId === m.id, participantes };
+    })
+  };
 }
 
 /** Si un código se filtra, se desactiva y se crea otro. */

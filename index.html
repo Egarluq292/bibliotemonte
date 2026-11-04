@@ -137,6 +137,9 @@ textarea{min-height:120px;resize:vertical}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .chip{padding:6px 12px;border-radius:999px;background:var(--papel2);color:var(--tinta);font-size:13px;font-weight:600;border:1.5px solid transparent}
 .chip.on{background:var(--tinta);color:#fff}
+.chip small{opacity:.6;font-weight:700;margin-left:2px}
+.part{margin-top:10px}
+.part .chips{margin-top:6px}
 .reservar-form input{padding:10px 12px}
 
 /* Barra inferior */
@@ -203,7 +206,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.12';
+const VERSION_APP = '1.13';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -767,7 +770,7 @@ function vGuia(){
     ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>tocarlo dos veces</b>: la app te lo indica.</p>
       <p>Solo puedes anular <b>tus</b> reservas. Si necesitas una hora reservada por otra persona, habla con ella.</p>`, 'anular')}
     ${paso(6, 'Crear los códigos de tus clases', `<p>En <b>Perfil → Códigos de clase</b>, escribe el nombre y pulsa <b>Crear</b>. Crea una por cada grupo o materia que des (p. ej. «Lengua 5.º», «Cono 6.º»).</p>
-      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre, <b>sin apellidos</b>.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
+      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre, <b>sin apellidos</b>.</li><li>Debajo de cada código verás <b>qué alumnos han participado</b> y cuántos mensajes ha enviado cada uno.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
     ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
       <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>`, 'revisar')}
     ${paso(8, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
@@ -838,9 +841,17 @@ async function cambiarClave(){
 function pintarClases(){
   if (!S.clases) return '<p class="ayuda">Cargando…</p>';
   if (!S.clases.length) return '<p class="ayuda">Aún no has creado ninguna.</p>';
-  return S.clases.map(c => `<div class="fila" style="padding:10px 0;border-bottom:1px solid var(--linea);${c.activa === 'sí' ? '' : 'opacity:.45'}">
-      <div><b>${esc(c.nombre)}</b><div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>
-      ${c.activa === 'sí' ? `<button class="btn-peq sec" onclick="desactivarClase('${c.codigo}')">Desactivar</button>` : '<span class="ayuda">Desactivado</span>'}</div>`).join('');
+  return S.clases.map(c => {
+    const part = c.participantes;
+    const lista = !part ? '' : part.length
+      ? `<div class="part"><div class="ayuda">${part.length === 1 ? 'Ha participado 1 alumno/a <span style="opacity:.7">(el número son los mensajes enviados)</span>' : `Han participado ${part.length} alumnos/as`} <span style="opacity:.7">(el número son los mensajes enviados)</span>:</div>
+          <div class="chips">${part.map(a => `<span class="chip" title="Último envío: ${fechaCorta(a.ultimo)}">${esc(a.alias)} <small>${a.envios}</small></span>`).join('')}</div></div>`
+      : '<div class="part ayuda">Aún no ha escrito nadie con este código.</div>';
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--linea);${c.activa === 'sí' ? '' : 'opacity:.45'}">
+      <div class="fila"><div><b>${esc(c.nombre)}</b>${esAdmin() && c.mia === false ? ' <span class="ayuda">(de otro maestro)</span>' : ''}<div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>
+      ${c.activa === 'sí' ? `<button class="btn-peq sec" onclick="desactivarClase('${c.codigo}')">Desactivar</button>` : '<span class="ayuda">Desactivado</span>'}</div>
+      ${lista}</div>`;
+  }).join('');
 }
 async function cargarClases(){
   if (!esMaestro()) return;
