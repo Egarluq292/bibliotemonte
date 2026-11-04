@@ -61,6 +61,7 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 .th .q{font-size:13px;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .th.ocu{background:rgba(176,58,134,.22);border-color:rgba(176,58,134,.4)}
 .th.act{outline:2px solid var(--oro)}
+.th.act .h{color:var(--oro);font-weight:700}
 .th.pas{opacity:.45}
 .mini{min-height:150px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;width:100%}
 .mini .n{font-family:Fraunces,serif;font-size:34px;line-height:1}
@@ -306,7 +307,7 @@ function vInicio(){
     const r = hoy.find(x => x.tramo === t.n);
     const pasado = ahora.hora >= t.fin;
     const cls = ['th', r ? 'ocu' : '', ahora.tramoActual === t.n ? 'act' : '', pasado ? 'pas' : ''].join(' ');
-    return `<div class="${cls}"><div class="h">${t.inicio}</div><div class="q">${r ? esc(r.maestro.split(' ')[0]) : 'Libre'}</div></div>`;
+    return `<div class="${cls}"><div class="h">${ahora.tramoActual === t.n ? 'Ahora' : t.inicio}</div><div class="q">${r ? esc(r.maestro.split(' ')[0]) : 'Libre'}</div></div>`;
   }).join('') : '';
 
   const sug = S.publicas ? S.publicas.sugerencias : [];

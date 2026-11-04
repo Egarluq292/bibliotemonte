@@ -1,5 +1,5 @@
 // Service worker de la Biblioteca. Sube VERSION en cada actualización.
-const VERSION = 'biblioteca-v6';
+const VERSION = 'biblioteca-v7';
 const BASICOS = ['./', './index.html', './manifest.webmanifest', './img/biblioteca.webp', './img/icono-192.png', './img/icono-512.png'];
 
 self.addEventListener('install', e => {
