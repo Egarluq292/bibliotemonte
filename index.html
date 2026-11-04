@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2B2350">
 <title>Biblioteca del CEIP Fernando IV</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="img/icono-192.png">
+<link rel="apple-touch-icon" href="img/icono-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Biblioteca">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preload" as="image" href="img/biblioteca.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -616,6 +623,7 @@ async function moderar(tipo, id, decision){
 }
 
 /* ============ ARRANQUE ============ */
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 pintar();
 refrescar();
 setInterval(() => { if (!document.hidden && !$('#hoja').classList.contains('on')) refrescar(); }, 60000);
