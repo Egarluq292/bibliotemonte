@@ -75,7 +75,7 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 .mesnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .mesnav h2{font-size:24px}
 .redondo{width:42px;height:42px;border-radius:50%;background:var(--blanco);box-shadow:var(--sombra);font-size:20px;display:grid;place-items:center}
-.cal{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.cal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 .cal .dsem{text-align:center;font-size:12px;font-weight:700;color:var(--suave);padding-bottom:2px}
 .dia{background:var(--blanco);border-radius:14px;aspect-ratio:1/1.15;padding:8px 7px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 2px rgba(43,35,80,.06);border:2px solid transparent;text-align:left}
 .dia .num{font-weight:700;font-size:15px}
@@ -86,7 +86,7 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 .dia.pasado{opacity:.45}
 .dia.fest{background:var(--papel2)}
 .dia.fest .barras{display:none}
-.dia .fl{font-size:10px;color:var(--suave);line-height:1.1}
+.dia .fl{font-size:10px;color:var(--tinta2);line-height:1.15;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .dia.vacio{background:transparent;box-shadow:none}
 .leyenda{display:flex;justify-content:center;gap:18px;margin-top:16px;font-size:13px;color:var(--tinta2)}
 .leyenda span{display:inline-flex;align-items:center;gap:6px}
@@ -180,6 +180,8 @@ textarea{min-height:120px;resize:vertical}
 .efe-banda{background:#FBF3DC;border:1px solid #F0DDA4;border-radius:14px;padding:10px 14px;margin:8px 0 4px}
 .efe-banda b{display:block;color:var(--tinta)}
 .efe-banda span{display:block;font-size:14px;color:var(--tinta2);margin-top:2px}
+.cal.esperando .barras i{animation:latido 1.2s ease-in-out infinite;background:var(--linea)}
+@keyframes latido{50%{opacity:.35}}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -214,7 +216,9 @@ const S = {
   publicas: null,
   pendientes: null,
   buzonTab: 'sugerencias',
-  cal: { festivos: [], efemerides: [] },   // calendario.json (festivos y efemérides)
+  cal: { festivos: [], efemerides: [] },
+  frescos: {},          // meses ya actualizados desde el servidor en esta sesión
+  cargandoMes: {},   // calendario.json (festivos y efemérides)
   sesion: leer('bib_sesion'),   // maestro: {token, maestro:{id,nombre,rol}}
   alumno: leer('bib_alumno')    // alumno: {codigoClase, alias}
 };
@@ -263,36 +267,81 @@ $('#velo').onclick = cerrarHoja;
 async function cargarEstado(mes){
   const j = await api('estado', mes ? { mes } : {});
   if (!mes || !S.estado) S.estado = j;
-  if (!mes) S.estado = j;
+  else S.estado.festivos = j.festivos;
   S.meses[j.mes] = j.reservas;
+  S.frescos[j.mes] = true;
   if (!S.mesVista) S.mesVista = j.mes;
+  guardarCache();
   return j;
+}
+
+/* ---- Caché local: la app se pinta al instante con lo último que sabía y se actualiza por detrás ---- */
+function guardarCache(){
+  if (!S.estado) return;
+  guardar('bib_cache', { estado: S.estado, meses: S.meses, publicas: S.publicas, cal: S.cal, t: Date.now() });
+}
+function leerCache(){
+  const c = leer('bib_cache');
+  if (!c || !c.estado || Date.now() - c.t > 7 * 864e5) return;
+  S.estado = c.estado; S.meses = c.meses || {}; S.publicas = c.publicas || null; S.cal = c.cal || S.cal;
+  S.mesVista = null;
+  actualizarReloj();
+}
+/** Fecha y hora de Madrid según el reloj del dispositivo (para no esperar al servidor). */
+function ahoraCliente(){
+  const p = {};
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .formatToParts(new Date()).forEach(x => p[x.type] = x.value);
+  return { fecha: `${p.year}-${p.month}-${p.day}`, hora: `${p.hour === '24' ? '00' : p.hour}:${p.minute}` };
+}
+function actualizarReloj(){
+  if (!S.estado) return;
+  const a = ahoraCliente();
+  const t = S.estado.tramos.find(x => a.hora >= x.inicio && a.hora < x.fin);
+  S.estado.ahora = { fecha: a.fecha, hora: a.hora, tramoActual: t ? t.n : null };
+  const mes = a.fecha.slice(0, 7);
+  S.estado.mes = mes;
+  if (S.meses[mes]) S.estado.hoy = S.meses[mes].filter(r => r.fecha === a.fecha);
+  if (!S.mesVista) S.mesVista = mes;
+}
+/** Carga por detrás los dos meses siguientes para que el calendario no tenga que esperar. */
+function precargarMeses(){
+  if (!S.estado) return;
+  let [y, m] = S.estado.ahora.fecha.slice(0, 7).split('-').map(Number);
+  for (let i = 0; i < 2; i++) {
+    m++; if (m > 12) { m = 1; y++; }
+    const mes = `${y}-${String(m).padStart(2,'0')}`;
+    if (!S.frescos[mes]) cargarEstado(mes).then(() => { if (S.vista === 'calendario') pintar(); }).catch(() => {});
+  }
 }
 async function cargarCalendario(){
   try { const r = await fetch('calendario.json', { cache: 'no-store' }); if (r.ok) S.cal = await r.json(); } catch(e){}
 }
-async function cargarPublicas(){ S.publicas = await api('publicas'); }
+async function cargarPublicas(){ S.publicas = await api('publicas'); guardarCache(); }
 async function cargarPendientes(){ if (esMaestro()) S.pendientes = await api('pendientes', { token: S.sesion.token }, true).catch(() => null); }
 
 async function refrescar(){
   try {
     await Promise.all([cargarEstado(), cargarPublicas(), cargarPendientes(), cargarCalendario()]);
     if (S.mesVista && S.mesVista !== S.estado.mes) await cargarEstado(S.mesVista);
+    guardarCache();
     pintar();
+    precargarMeses();
   } catch(e){ aviso('Sin conexión con el servidor', true); }
 }
 
 /* ============ FESTIVOS Y EFEMÉRIDES ============ */
 function listaFestivos(){
   const out = {};
-  (S.estado ? S.estado.festivos : []).forEach(f => out[f.fecha] = f.motivo);
   (S.cal.festivos || []).forEach(f => {
-    if (f.fecha) out[f.fecha] = out[f.fecha] || f.motivo || 'Festivo';
-    else if (f.desde && f.hasta) for (let d = f.desde; d <= f.hasta; d = sumarDias(d, 1)) out[d] = out[d] || f.motivo || 'Vacaciones';
+    const v = { motivo: f.motivo || 'Festivo', corto: f.corto || f.motivo || 'Festivo' };
+    if (f.fecha) out[f.fecha] = v;
+    else if (f.desde && f.hasta) for (let d = f.desde; d <= f.hasta; d = sumarDias(d, 1)) out[d] = v;
   });
+  (S.estado ? S.estado.festivos : []).forEach(f => { if (!out[f.fecha]) out[f.fecha] = { motivo: f.motivo, corto: f.motivo }; });
   return out;
 }
-const festivoDe = f => { const m = listaFestivos()[f]; return m ? { fecha: f, motivo: m } : null; };
+const festivoDe = f => { const m = listaFestivos()[f]; return m ? { fecha: f, motivo: m.motivo, corto: m.corto } : null; };
 const efemeridesDe = f => (S.cal.efemerides || []).filter(e => e.fecha === f);
 
 function diasEntre(a, b){ return Math.round((dUTC(b) - dUTC(a)) / 86400000); }
@@ -421,10 +470,13 @@ function vCalendario(){
   const [y, m] = S.mesVista.split('-').map(Number);
   const reservas = S.meses[S.mesVista];
   let celdas = ['L','M','X','J','V'].map(d => `<div class="dsem">${d}</div>`).join('');
-  if (!reservas) {
-    cargarEstado(S.mesVista).then(pintar).catch(() => aviso('No se pudo cargar el mes', true));
-    return cabecera('Reservas') + navMes(y, m) + '<div class="cargando">Cargando…</div>';
+  if (!S.frescos[S.mesVista] && !S.cargandoMes[S.mesVista]) {
+    const mes = S.mesVista; S.cargandoMes[mes] = true;
+    cargarEstado(mes).then(() => { if (S.vista === 'calendario') pintar(); })
+      .catch(() => { if (!reservas) aviso('No se pudo cargar el mes', true); })
+      .finally(() => { delete S.cargandoMes[mes]; });
   }
+  const esperando = !reservas;
   const dias = new Date(Date.UTC(y, m, 0)).getUTCDate();
   let primero = true;
   for (let d = 1; d <= dias; d++) {
@@ -434,13 +486,13 @@ function vCalendario(){
     if (primero) { for (let i = 1; i < ds; i++) celdas += '<div class="dia vacio"></div>'; primero = false; }
     const fest = festivoDe(f);
     const efe = efemeridesDe(f);
-    const delDia = reservas.filter(r => r.fecha === f);
+    const delDia = (reservas || []).filter(r => r.fecha === f);
     const barras = [1,2,3,4].map(n => `<i class="${delDia.some(r => r.tramo === n) ? 'o' : ''}"></i>`).join('');
     const cls = ['dia', f === S.estado.ahora.fecha ? 'hoy' : '', f < S.estado.ahora.fecha ? 'pasado' : '', fest ? 'fest' : ''].join(' ');
     celdas += `<button class="${cls}" onclick="abrirDia('${f}')"><span class="num">${d}${efe.length ? '<span class="efe">★</span>' : ''}</span>
-      ${fest ? `<span class="fl">${esc((fest.motivo || 'Festivo').slice(0,14))}</span>` : `<span class="barras">${barras}</span>`}</button>`;
+      ${fest ? `<span class="fl">${esc(fest.corto)}</span>` : `<span class="barras">${barras}</span>`}</button>`;
   }
-  return cabecera('Reservas') + navMes(y, m) + `<div class="cal">${celdas}</div>
+  return cabecera('Reservas') + navMes(y, m) + `<div class="cal${esperando ? ' esperando' : ''}">${celdas}</div>
     <div class="leyenda"><span><i style="background:#C9E7D2"></i>Libre</span><span><i style="background:var(--teja)"></i>Reservada</span><span><b style="color:var(--oro)">★</b> Efeméride</span></div>
     <p class="ayuda" style="text-align:center;margin-top:14px">Cada barra es una sesión: 9:30 · 10:30 · 12:00 · 13:00</p>
     ${!esMaestro() ? '<p class="ayuda" style="text-align:center">Solo el profesorado puede reservar.</p>' : ''}`;
@@ -457,6 +509,7 @@ function cambiarMes(delta){
 }
 
 function abrirDia(f){
+  if (!S.meses[f.slice(0,7)]) { aviso('Cargando las reservas de ese mes…'); return; }
   const reservas = (S.meses[f.slice(0,7)] || []).filter(r => r.fecha === f);
   const fest = festivoDe(f);
   const efes = efemeridesDe(f);
@@ -903,10 +956,11 @@ if ('serviceWorker' in navigator) {
   });
   if (sessionStorage.getItem('bib_actualizada')) { sessionStorage.removeItem('bib_actualizada'); setTimeout(() => aviso('App actualizada ✓'), 600); }
 }
+leerCache();
 pintar();
 refrescar();
 if (esMaestro()) cargarClases();
-setInterval(() => { if (!document.hidden && !$('#hoja').classList.contains('on')) refrescar(); }, 60000);
+setInterval(() => { actualizarReloj(); if (!document.hidden && !$('#hoja').classList.contains('on')) { pintar(); refrescar(); } }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescar(); });
 </script>
 </body>

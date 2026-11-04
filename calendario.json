@@ -1,33 +1,151 @@
 {
   "curso": "2026-2027",
   "festivos": [
-    { "fecha": "2026-11-02", "motivo": "Día no lectivo" },
-    { "desde": "2026-12-07", "hasta": "2026-12-08", "motivo": "Puente de la Inmaculada" },
-    { "desde": "2026-12-23", "hasta": "2027-01-07", "motivo": "Vacaciones de Navidad" },
-    { "fecha": "2027-02-26", "motivo": "Día de la Comunidad Escolar" },
-    { "fecha": "2027-03-01", "motivo": "Fiesta del Día de Andalucía" },
-    { "desde": "2027-03-22", "hasta": "2027-03-28", "motivo": "Semana Santa" },
-    { "desde": "2027-05-03", "hasta": "2027-05-05", "motivo": "Puente de San Amador" },
-    { "desde": "2027-06-23", "hasta": "2027-08-31", "motivo": "Vacaciones de verano" }
+    {
+      "fecha": "2026-11-02",
+      "motivo": "Día no lectivo",
+      "corto": "No lectivo"
+    },
+    {
+      "desde": "2026-12-07",
+      "hasta": "2026-12-08",
+      "motivo": "Puente de la Inmaculada",
+      "corto": "Puente"
+    },
+    {
+      "desde": "2026-12-23",
+      "hasta": "2027-01-07",
+      "motivo": "Vacaciones de Navidad",
+      "corto": "Navidad"
+    },
+    {
+      "fecha": "2027-02-26",
+      "motivo": "Día de la Comunidad Escolar",
+      "corto": "Comunidad Escolar"
+    },
+    {
+      "fecha": "2027-03-01",
+      "motivo": "Fiesta del Día de Andalucía",
+      "corto": "Andalucía"
+    },
+    {
+      "desde": "2027-03-22",
+      "hasta": "2027-03-28",
+      "motivo": "Semana Santa",
+      "corto": "Semana Santa"
+    },
+    {
+      "desde": "2027-05-03",
+      "hasta": "2027-05-05",
+      "motivo": "Puente de San Amador",
+      "corto": "San Amador"
+    },
+    {
+      "desde": "2027-06-23",
+      "hasta": "2027-08-31",
+      "motivo": "Vacaciones de verano",
+      "corto": "Verano"
+    }
   ],
   "efemerides": [
-    { "fecha": "2026-11-16", "icono": "💃", "titulo": "Día del Flamenco" },
-    { "fecha": "2026-11-20", "icono": "🧒", "titulo": "Día de los Derechos de la Infancia" },
-    { "fecha": "2026-11-23", "icono": "🎵", "titulo": "Día de la Música", "detalle": "Se celebra hoy porque el 22 de noviembre cae en domingo." },
-    { "fecha": "2026-11-25", "icono": "💜", "titulo": "Día contra la Violencia hacia la Mujer", "detalle": "Día Internacional de la Eliminación de la Violencia contra la Mujer." },
-    { "fecha": "2026-12-04", "icono": "📜", "titulo": "Día de la Bandera Andaluza y de la Constitución" },
-    { "fecha": "2026-12-16", "icono": "📚", "titulo": "Día de la Lectura en Andalucía" },
-    { "fecha": "2027-01-29", "icono": "🕊️", "titulo": "Día Escolar de la No Violencia y la Paz", "detalle": "Se celebra hoy porque el 30 de enero cae en sábado." },
-    { "fecha": "2027-02-11", "icono": "🔬", "titulo": "Día de la Mujer y la Niña en la Ciencia" },
-    { "fecha": "2027-02-25", "icono": "💚", "titulo": "Día de Andalucía", "detalle": "Se celebra hoy porque el 28 de febrero cae en domingo y el 26 y el 1 de marzo no hay clase." },
-    { "fecha": "2027-03-08", "icono": "💜", "titulo": "Día Internacional de la Mujer" },
-    { "fecha": "2027-04-07", "icono": "🍎", "titulo": "Día Mundial de la Salud" },
-    { "fecha": "2027-04-23", "icono": "📖", "titulo": "Día del Libro" },
-    { "fecha": "2027-04-30", "icono": "🤝", "titulo": "Día contra el Acoso Escolar y el Ciberacoso", "detalle": "Se celebra hoy porque el 2 de mayo cae en domingo, dentro del puente." },
-    { "fecha": "2027-05-07", "icono": "🇪🇺", "titulo": "Día de Europa", "detalle": "Se celebra hoy porque el 9 de mayo cae en domingo." },
-    { "fecha": "2027-05-14", "icono": "👨‍👩‍👧", "titulo": "Día Internacional de las Familias", "detalle": "Se celebra hoy porque el 15 de mayo cae en sábado." },
-    { "fecha": "2027-06-04", "icono": "🌱", "titulo": "Día Mundial del Medio Ambiente", "detalle": "Se celebra hoy porque el 5 de junio cae en sábado." },
-    { "fecha": "2027-06-14", "icono": "🕯️", "titulo": "Día de la Memoria Histórica y Democrática" },
-    { "fecha": "2027-06-22", "icono": "☀️", "titulo": "Último día de clase", "detalle": "Fin de curso de Educación Primaria." }
+    {
+      "fecha": "2026-11-16",
+      "icono": "💃",
+      "titulo": "Día del Flamenco"
+    },
+    {
+      "fecha": "2026-11-20",
+      "icono": "🧒",
+      "titulo": "Día de los Derechos de la Infancia"
+    },
+    {
+      "fecha": "2026-11-23",
+      "icono": "🎵",
+      "titulo": "Día de la Música",
+      "detalle": "Se celebra hoy porque el 22 de noviembre cae en domingo."
+    },
+    {
+      "fecha": "2026-11-25",
+      "icono": "💜",
+      "titulo": "Día contra la Violencia hacia la Mujer",
+      "detalle": "Día Internacional de la Eliminación de la Violencia contra la Mujer."
+    },
+    {
+      "fecha": "2026-12-04",
+      "icono": "📜",
+      "titulo": "Día de la Bandera Andaluza y de la Constitución"
+    },
+    {
+      "fecha": "2026-12-16",
+      "icono": "📚",
+      "titulo": "Día de la Lectura en Andalucía"
+    },
+    {
+      "fecha": "2027-01-29",
+      "icono": "🕊️",
+      "titulo": "Día Escolar de la No Violencia y la Paz",
+      "detalle": "Se celebra hoy porque el 30 de enero cae en sábado."
+    },
+    {
+      "fecha": "2027-02-11",
+      "icono": "🔬",
+      "titulo": "Día de la Mujer y la Niña en la Ciencia"
+    },
+    {
+      "fecha": "2027-02-25",
+      "icono": "💚",
+      "titulo": "Día de Andalucía",
+      "detalle": "Se celebra hoy porque el 28 de febrero cae en domingo y el 26 y el 1 de marzo no hay clase."
+    },
+    {
+      "fecha": "2027-03-08",
+      "icono": "💜",
+      "titulo": "Día Internacional de la Mujer"
+    },
+    {
+      "fecha": "2027-04-07",
+      "icono": "🍎",
+      "titulo": "Día Mundial de la Salud"
+    },
+    {
+      "fecha": "2027-04-23",
+      "icono": "📖",
+      "titulo": "Día del Libro"
+    },
+    {
+      "fecha": "2027-04-30",
+      "icono": "🤝",
+      "titulo": "Día contra el Acoso Escolar y el Ciberacoso",
+      "detalle": "Se celebra hoy porque el 2 de mayo cae en domingo, dentro del puente."
+    },
+    {
+      "fecha": "2027-05-07",
+      "icono": "🇪🇺",
+      "titulo": "Día de Europa",
+      "detalle": "Se celebra hoy porque el 9 de mayo cae en domingo."
+    },
+    {
+      "fecha": "2027-05-14",
+      "icono": "👨‍👩‍👧",
+      "titulo": "Día Internacional de las Familias",
+      "detalle": "Se celebra hoy porque el 15 de mayo cae en sábado."
+    },
+    {
+      "fecha": "2027-06-04",
+      "icono": "🌱",
+      "titulo": "Día Mundial del Medio Ambiente",
+      "detalle": "Se celebra hoy porque el 5 de junio cae en sábado."
+    },
+    {
+      "fecha": "2027-06-14",
+      "icono": "🕯️",
+      "titulo": "Día de la Memoria Histórica y Democrática"
+    },
+    {
+      "fecha": "2027-06-22",
+      "icono": "☀️",
+      "titulo": "Último día de clase",
+      "detalle": "Fin de curso de Educación Primaria."
+    }
   ]
 }
