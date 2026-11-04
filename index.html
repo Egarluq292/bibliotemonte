@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2B2350">
 <title>Biblioteca del CEIP Fernando IV</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -25,9 +25,9 @@
   --radio:22px; --sombra:0 1px 2px rgba(43,35,80,.06),0 8px 24px rgba(43,35,80,.09);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{background:var(--papel);color:var(--tinta);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.45}
+html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;background:var(--papel);color:var(--tinta);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.45}
 button,input,textarea{font:inherit;color:inherit}
-button{cursor:pointer;border:0;background:none}
+button{cursor:pointer;border:0;background:none;touch-action:manipulation}
 .app{max-width:560px;margin:0 auto;min-height:100vh;padding:calc(env(safe-area-inset-top) + 18px) 18px calc(env(safe-area-inset-bottom) + 96px)}
 h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01em}
 
@@ -185,6 +185,10 @@ textarea{min-height:120px;resize:vertical}
 .efe-banda span{display:block;font-size:14px;color:var(--tinta2);margin-top:2px}
 .cal.esperando .barras i{animation:latido 1.2s ease-in-out infinite;background:var(--linea)}
 @keyframes latido{50%{opacity:.35}}
+.cal.desde-der{animation:desdeDer .22s ease-out}
+.cal.desde-izq{animation:desdeIzq .22s ease-out}
+@keyframes desdeDer{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes desdeIzq{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -206,7 +210,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.13';
+const VERSION_APP = '1.14';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -498,7 +502,7 @@ function vCalendario(){
   }
   return cabecera('Reservas') + navMes(y, m) + `<div class="cal${esperando ? ' esperando' : ''}">${celdas}</div>
     <div class="leyenda"><span><i style="background:#C9E7D2"></i>Libre</span><span><i style="background:var(--teja)"></i>Reservada</span><span><b style="color:var(--oro)">★</b> Efeméride</span></div>
-    <p class="ayuda" style="text-align:center;margin-top:14px">Cada barra es una sesión: 9:30 · 10:30 · 12:00 · 13:00</p>
+    <p class="ayuda" style="text-align:center;margin-top:14px">Cada barra es una sesión: 9:30 · 10:30 · 12:00 · 13:00<br>Desliza el dedo a los lados para cambiar de mes.</p>
     ${!esMaestro() ? '<p class="ayuda" style="text-align:center">Solo el profesorado puede reservar.</p>' : ''}`;
 }
 
@@ -510,7 +514,27 @@ function cambiarMes(delta){
   let [y, m] = S.mesVista.split('-').map(Number);
   m += delta; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
   S.mesVista = `${y}-${String(m).padStart(2,'0')}`; pintar();
+  const cal = document.querySelector('.cal'); if (cal) cal.classList.add(delta > 0 ? 'desde-der' : 'desde-izq');
 }
+
+/* Deslizar el dedo a izquierda o derecha para cambiar de mes */
+(() => {
+  let x0 = null, y0 = null, t0 = 0;
+  document.addEventListener('touchstart', e => {
+    if (S.vista !== 'calendario' || e.touches.length !== 1 || $('#hoja').classList.contains('on')) { x0 = null; return; }
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Date.now() - t0 < 600 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) cambiarMes(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
+
+/* Sin zoom al pellizcar ni con doble toque (también en iPhone, que ignora la etiqueta viewport) */
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
 function abrirDia(f){
   if (!S.meses[f.slice(0,7)]) { aviso('Cargando las reservas de ese mes…'); return; }
@@ -764,7 +788,7 @@ function vGuia(){
     ${paso(2, 'Ver si la biblioteca está libre', `<p>En <b>Inicio</b> verás al momento si está <b>libre u ocupada</b> y por quién.</p>
       <p>Las cuatro casillas son las sesiones del día. La que pone <b>«Ahora»</b> es la que está en curso.</p>`, 'inicio')}
     ${paso(3, 'Consultar el calendario', `<p>En la pestaña <b>Reservas</b> está el mes completo, de lunes a viernes.</p>
-      <p>Cada día tiene <b>cuatro barras</b>, una por sesión (9:30 · 10:30 · 12:00 · 13:00): <b style="color:#2F8550">verde</b> = libre, <b style="color:#B03A86">magenta</b> = reservada. Usa ‹ › para cambiar de mes.</p>`, 'calendario')}
+      <p>Cada día tiene <b>cuatro barras</b>, una por sesión (9:30 · 10:30 · 12:00 · 13:00): <b style="color:#2F8550">verde</b> = libre, <b style="color:#B03A86">magenta</b> = reservada. Para cambiar de mes, <b>desliza el dedo</b> a los lados o usa ‹ ›.</p>`, 'calendario')}
     ${paso(4, 'Reservar', `<ol><li>Toca el día.</li><li>En una sesión libre, pulsa <b>Reservar</b>.</li><li>Elige tu clase en los botones (o escribe el motivo).</li><li>Pulsa <b>OK</b>.</li></ol>
       <p>Si otra persona la reserva un instante antes, la app te avisa: <b>nunca habrá dos reservas a la misma hora</b>.</p>`, 'reservar')}
     ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>tocarlo dos veces</b>: la app te lo indica.</p>
