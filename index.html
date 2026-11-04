@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F2A44">
-<title>Biblioteca escolar</title>
+<title>Biblioteca del CEIP Fernando IV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -25,9 +25,10 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 
 /* Cabecera */
 .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.cab .t{font-family:Fraunces,serif;font-size:28px;font-weight:700}
+.cab .t{font-family:Fraunces,serif;font-size:28px;font-weight:700;line-height:1.1}
+.cab .centro{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teja);margin-bottom:2px}
 .cab .s{font-size:13px;color:var(--suave)}
-.avatar{width:42px;height:42px;border-radius:50%;background:var(--tinta);color:var(--papel);display:grid;place-items:center;font-weight:700}
+.avatar{flex-shrink:0;width:42px;height:42px;border-radius:50%;background:var(--tinta);color:var(--papel);display:grid;place-items:center;font-weight:700}
 
 /* Tarjetas */
 .card{background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);padding:18px;position:relative;overflow:hidden}
@@ -163,7 +164,7 @@ textarea{min-height:120px;resize:vertical}
 <script>
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
-const NOMBRE_CENTRO = 'Biblioteca escolar';
+const NOMBRE_CENTRO = 'CEIP Fernando IV';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -257,7 +258,7 @@ function pintar(){
 function cabecera(t){
   const hoy = S.estado ? mayus(fechaLarga(S.estado.ahora.fecha)) : '';
   const quien = esMaestro() ? iniciales(S.sesion.maestro.nombre) : (S.alumno ? iniciales(S.alumno.alias) : '👤');
-  return `<header class="cab"><div><div class="t">${t || NOMBRE_CENTRO}</div><div class="s">${hoy}</div></div>
+  return `<header class="cab"><div>${t ? '' : `<div class="centro">${NOMBRE_CENTRO}</div>`}<div class="t">${t || 'Biblioteca'}</div><div class="s">${hoy}</div></div>
     <button class="avatar" onclick="ir('perfil')">${esc(quien)}</button></header>`;
 }
 
