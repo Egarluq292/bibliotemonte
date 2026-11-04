@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F2A44">
+<title>Biblioteca escolar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papel:#F5EFE4; --papel2:#EDE5D6; --blanco:#FFFDF8;
+  --tinta:#1F2A44; --tinta2:#4A5675; --suave:#8A8FA0;
+  --linea:#E2D8C5; --musgo:#3F7A5A; --musgo-bg:#E3F0E7;
+  --teja:#C2603D; --teja-bg:#F7E3DA; --oro:#D9A441;
+  --radio:22px; --sombra:0 1px 2px rgba(31,42,68,.06),0 8px 24px rgba(31,42,68,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--papel);color:var(--tinta);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.45}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.app{max-width:560px;margin:0 auto;min-height:100vh;padding:calc(env(safe-area-inset-top) + 18px) 18px calc(env(safe-area-inset-bottom) + 96px)}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01em}
+
+/* Cabecera */
+.cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.cab .t{font-family:Fraunces,serif;font-size:28px;font-weight:700}
+.cab .s{font-size:13px;color:var(--suave)}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--tinta);color:var(--papel);display:grid;place-items:center;font-weight:700}
+
+/* Tarjetas */
+.card{background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);padding:18px;position:relative;overflow:hidden}
+.card+.card,.grid2+.card,.card+.grid2{margin-top:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch}
+.grid2>.card{margin-top:0!important;height:100%}
+.etq{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
+.hero{background:var(--tinta);color:var(--papel);padding:22px}
+.hero .etq{color:#AEB6CC}
+.hero .estado{font-family:Fraunces,serif;font-size:32px;margin:6px 0 2px}
+.hero .det{color:#D3D8E5;font-size:15px;min-height:22px}
+.hero .deco{position:absolute;right:-30px;top:-30px;width:140px;height:140px;border-radius:50%;border:22px solid rgba(217,164,65,.18)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:13px;font-weight:600}
+.pill.libre{background:var(--musgo-bg);color:var(--musgo)}
+.pill.ocupada{background:var(--teja-bg);color:var(--teja)}
+.pill.neutra{background:rgba(255,255,255,.12);color:#E6E9F2}
+.punto{width:8px;height:8px;border-radius:50%;background:currentColor}
+.tramos-hoy{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:18px}
+.th{background:rgba(255,255,255,.07);border-radius:14px;padding:10px 8px;text-align:center;border:1px solid rgba(255,255,255,.08)}
+.th .h{font-size:12px;color:#AEB6CC}
+.th .q{font-size:13px;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th.ocu{background:rgba(194,96,61,.22);border-color:rgba(194,96,61,.4)}
+.th.act{outline:2px solid var(--oro)}
+.th.pas{opacity:.45}
+.mini{min-height:150px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;width:100%}
+.mini .n{font-family:Fraunces,serif;font-size:34px;line-height:1}
+.mini .sub{font-size:13px;color:var(--tinta2);margin-top:6px;min-height:2.9em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.icono{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:19px;background:var(--papel)}
+.fila{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ir{font-size:20px;color:var(--suave)}
+.badge{background:var(--teja);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px}
+
+/* Calendario */
+.mesnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.mesnav h2{font-size:24px}
+.redondo{width:42px;height:42px;border-radius:50%;background:var(--blanco);box-shadow:var(--sombra);font-size:20px;display:grid;place-items:center}
+.cal{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.cal .dsem{text-align:center;font-size:12px;font-weight:700;color:var(--suave);padding-bottom:2px}
+.dia{background:var(--blanco);border-radius:14px;aspect-ratio:1/1.15;padding:8px 7px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 2px rgba(31,42,68,.06);border:2px solid transparent;text-align:left}
+.dia .num{font-weight:700;font-size:15px}
+.dia .barras{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+.dia .barras i{height:6px;border-radius:3px;background:#CFE3D6}
+.dia .barras i.o{background:var(--teja)}
+.dia.hoy{border-color:var(--tinta)}
+.dia.pasado{opacity:.45}
+.dia.fest{background:var(--papel2)}
+.dia.fest .barras{display:none}
+.dia .fl{font-size:10px;color:var(--suave);line-height:1.1}
+.dia.vacio{background:transparent;box-shadow:none}
+.leyenda{display:flex;justify-content:center;gap:18px;margin-top:16px;font-size:13px;color:var(--tinta2)}
+.leyenda span{display:inline-flex;align-items:center;gap:6px}
+.leyenda i{width:16px;height:6px;border-radius:3px;display:inline-block}
+
+/* Listas */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--papel2);border-radius:14px;padding:4px;margin-bottom:16px}
+.seg button{padding:10px;border-radius:11px;font-weight:600;color:var(--tinta2)}
+.seg button.on{background:var(--blanco);color:var(--tinta);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.item{width:100%;text-align:left;display:block}
+.item h3{font-size:18px;margin-bottom:4px}
+.item p{color:var(--tinta2);font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.meta{font-size:12px;color:var(--suave);margin-top:10px}
+.estrellas{color:var(--oro);letter-spacing:2px}
+.vacio-msg{text-align:center;color:var(--suave);padding:40px 10px}
+
+/* Formularios y botones */
+label{display:block;font-size:13px;font-weight:600;color:var(--tinta2);margin:14px 0 6px}
+input,textarea{width:100%;padding:13px 14px;border-radius:14px;border:1.5px solid var(--linea);background:var(--blanco);outline:none}
+input:focus,textarea:focus{border-color:var(--tinta)}
+textarea{min-height:120px;resize:vertical}
+.btn{display:block;width:100%;padding:14px;border-radius:14px;background:var(--tinta);color:var(--papel);font-weight:600;margin-top:18px}
+.btn.sec{background:var(--papel2);color:var(--tinta)}
+.btn.peligro{background:var(--teja-bg);color:var(--teja)}
+.btn:disabled{opacity:.5}
+.btn-peq{padding:8px 14px;border-radius:11px;font-weight:600;font-size:14px;background:var(--tinta);color:var(--papel)}
+.btn-peq.sec{background:var(--papel2);color:var(--tinta)}
+.btn-peq.peligro{background:var(--teja-bg);color:var(--teja)}
+.ayuda{font-size:13px;color:var(--suave);margin-top:8px}
+.selector-estrellas{display:flex;gap:8px;font-size:34px;color:var(--linea)}
+.selector-estrellas button.on{color:var(--oro)}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rol{text-align:center;padding:26px 12px}
+.rol .e{font-size:38px}
+.rol h3{margin-top:10px;font-size:19px}
+.rol p{font-size:13px;color:var(--tinta2);margin-top:4px}
+.codigo{font-family:ui-monospace,Menlo,monospace;font-weight:700;background:var(--papel);padding:4px 10px;border-radius:8px;letter-spacing:.05em}
+.linea{border-top:1px solid var(--linea);margin:14px 0}
+.tramo-fila{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--linea)}
+.tramo-fila:last-child{border-bottom:0}
+.tramo-fila .hora{width:62px;font-weight:700;font-size:14px;line-height:1.2}
+.tramo-fila .hora small{display:block;color:var(--suave);font-weight:500}
+.tramo-fila .info{flex:1;min-width:0}
+.tramo-fila .info b{display:block}
+.tramo-fila .info span{font-size:13px;color:var(--tinta2)}
+.reservar-form{display:flex;gap:8px;margin-top:8px}
+.reservar-form input{padding:10px 12px}
+
+/* Barra inferior */
+.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 12px);width:min(530px,calc(100% - 28px));background:rgba(31,42,68,.96);backdrop-filter:blur(10px);border-radius:24px;display:grid;grid-template-columns:repeat(4,1fr);padding:8px;z-index:20;box-shadow:0 10px 30px rgba(31,42,68,.3)}
+.tabbar button{color:#9AA3BC;font-size:11px;font-weight:600;padding:6px 0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabbar button .e{font-size:20px;filter:grayscale(1);opacity:.75}
+.tabbar button.on{color:var(--papel);background:rgba(255,255,255,.08)}
+.tabbar button.on .e{filter:none;opacity:1}
+
+/* Hoja inferior */
+.velo{position:fixed;inset:0;background:rgba(20,25,40,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.velo.on{opacity:1;pointer-events:auto}
+.hoja{position:fixed;left:50%;bottom:0;transform:translate(-50%,100%);width:min(560px,100%);max-height:88vh;overflow:auto;background:var(--blanco);border-radius:26px 26px 0 0;padding:10px 20px calc(env(safe-area-inset-bottom) + 24px);z-index:41;transition:transform .25s ease}
+.hoja.on{transform:translate(-50%,0)}
+.hoja .asa{width:44px;height:5px;border-radius:3px;background:var(--linea);margin:4px auto 14px}
+.hoja h2{font-size:23px;margin-bottom:4px}
+
+.fab{position:fixed;right:max(18px,calc(50% - 262px));bottom:calc(env(safe-area-inset-bottom) + 96px);background:var(--teja);color:#fff;font-weight:700;padding:14px 20px;border-radius:999px;box-shadow:0 8px 20px rgba(194,96,61,.4);z-index:15}
+.aviso{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translate(-50%,-150%);background:var(--tinta);color:var(--papel);padding:12px 18px;border-radius:14px;font-size:14px;font-weight:500;z-index:60;transition:transform .25s;max-width:calc(100% - 32px);text-align:center}
+.aviso.on{transform:translate(-50%,0)}
+.aviso.error{background:var(--teja)}
+.cargando{text-align:center;color:var(--suave);padding:60px 0}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<nav class="tabbar" id="tabbar">
+  <button data-v="inicio"><span class="e">🏠</span>Inicio</button>
+  <button data-v="calendario"><span class="e">📅</span>Reservas</button>
+  <button data-v="buzon"><span class="e">💬</span>Buzón</button>
+  <button data-v="perfil"><span class="e">👤</span>Perfil</button>
+</nav>
+
+<div class="velo" id="velo"></div>
+<div class="hoja" id="hoja"><div class="asa"></div><div id="hojaCont"></div></div>
+<div class="aviso" id="aviso"></div>
+
+<script>
+/* ============ CONFIGURACIÓN ============ */
+const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
+const NOMBRE_CENTRO = 'Biblioteca escolar';
+
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+/* ============ ESTADO ============ */
+const S = {
+  vista: 'inicio',
+  estado: null,          // respuesta de ?action=estado (mes actual + hoy)
+  meses: {},             // caché de reservas por mes
+  mesVista: null,
+  publicas: null,
+  pendientes: null,
+  buzonTab: 'sugerencias',
+  sesion: leer('bib_sesion'),   // maestro: {token, maestro:{id,nombre,rol}}
+  alumno: leer('bib_alumno')    // alumno: {codigoClase, alias}
+};
+
+function leer(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
+function guardar(k,v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+
+/* ============ API ============ */
+async function api(action, params = {}, post = false) {
+  let r;
+  if (post) r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ action }, params)) });
+  else r = await fetch(API + '?' + new URLSearchParams(Object.assign({ action }, params)));
+  const j = await r.json();
+  if (!j.ok) {
+    if (/Sesión no válida/.test(j.error)) { S.sesion = null; guardar('bib_sesion', null); }
+    throw new Error(j.error);
+  }
+  return j;
+}
+
+/* ============ UTILIDADES ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/^'/, '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dUTC = f => new Date(f + 'T12:00:00Z');
+const diaSem = f => dUTC(f).getUTCDay();
+const fechaLarga = f => { const d = dUTC(f); return `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} de ${MESES[d.getUTCMonth()]}`; };
+const fechaCorta = s => { if (!s) return ''; const [f] = s.split(' '); const d = dUTC(f); return `${d.getUTCDate()} ${MESES[d.getUTCMonth()].slice(0,3)}`; };
+const mayus = t => t.charAt(0).toUpperCase() + t.slice(1);
+const estrellas = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+const iniciales = n => n.split(' ').filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('');
+const esMaestro = () => !!(S.sesion && S.sesion.token);
+const esAdmin = () => esMaestro() && S.sesion.maestro.rol === 'admin';
+function sumarDias(f, n){ const d = dUTC(f); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
+function ahoraCompleto(){ return S.estado ? S.estado.ahora.fecha + ' ' + S.estado.ahora.hora : ''; }
+
+function aviso(msg, error){
+  const a = $('#aviso'); a.textContent = msg; a.className = 'aviso on' + (error ? ' error' : '');
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => a.className = 'aviso', 3200);
+}
+
+function abrirHoja(html){ $('#hojaCont').innerHTML = html; $('#velo').classList.add('on'); $('#hoja').classList.add('on'); }
+function cerrarHoja(){ $('#velo').classList.remove('on'); $('#hoja').classList.remove('on'); }
+$('#velo').onclick = cerrarHoja;
+
+/* ============ CARGA DE DATOS ============ */
+async function cargarEstado(mes){
+  const j = await api('estado', mes ? { mes } : {});
+  if (!mes || !S.estado) S.estado = j;
+  if (!mes) S.estado = j;
+  S.meses[j.mes] = j.reservas;
+  if (!S.mesVista) S.mesVista = j.mes;
+  return j;
+}
+async function cargarPublicas(){ S.publicas = await api('publicas'); }
+async function cargarPendientes(){ if (esMaestro()) S.pendientes = await api('pendientes', { token: S.sesion.token }, true).catch(() => null); }
+
+async function refrescar(){
+  try {
+    await Promise.all([cargarEstado(), cargarPublicas(), cargarPendientes()]);
+    if (S.mesVista && S.mesVista !== S.estado.mes) await cargarEstado(S.mesVista);
+    pintar();
+  } catch(e){ aviso('Sin conexión con el servidor', true); }
+}
+
+/* ============ NAVEGACIÓN ============ */
+document.querySelectorAll('#tabbar button').forEach(b => b.onclick = () => ir(b.dataset.v));
+function ir(v){ S.vista = v; window.scrollTo(0,0); pintar(); }
+
+function pintar(){
+  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === S.vista));
+  const app = $('#app');
+  if (!S.estado) { app.innerHTML = cabecera() + '<div class="cargando">Cargando la biblioteca…</div>'; return; }
+  const vistas = { inicio: vInicio, calendario: vCalendario, buzon: vBuzon, perfil: vPerfil };
+  app.innerHTML = vistas[S.vista]();
+  const fab = document.querySelector('.fab'); if (fab) fab.onclick = nuevoMensaje;
+}
+
+function cabecera(t){
+  const hoy = S.estado ? mayus(fechaLarga(S.estado.ahora.fecha)) : '';
+  const quien = esMaestro() ? iniciales(S.sesion.maestro.nombre) : (S.alumno ? iniciales(S.alumno.alias) : '👤');
+  return `<header class="cab"><div><div class="t">${t || NOMBRE_CENTRO}</div><div class="s">${hoy}</div></div>
+    <button class="avatar" onclick="ir('perfil')">${esc(quien)}</button></header>`;
+}
+
+/* ============ INICIO ============ */
+function situacionAhora(){
+  const { ahora, tramos, hoy, festivos } = S.estado;
+  const ds = diaSem(ahora.fecha);
+  const fest = festivos.find(f => f.fecha === ahora.fecha);
+  if (ds === 0 || ds === 6) return { estado: 'Cerrada', det: 'Hoy no hay clase.', clase: 'neutra', lectivo: false };
+  if (fest) return { estado: 'Cerrada', det: fest.motivo || 'Día no lectivo.', clase: 'neutra', lectivo: false };
+  if (ahora.tramoActual) {
+    const r = hoy.find(x => x.tramo === ahora.tramoActual);
+    const t = tramos[ahora.tramoActual - 1];
+    return r ? { estado: 'Ocupada', det: `${r.maestro} · ${r.grupo} · hasta las ${t.fin}`, clase: 'ocupada', lectivo: true }
+             : { estado: 'Libre', det: `Libre hasta las ${t.fin}`, clase: 'libre', lectivo: true };
+  }
+  if (ahora.hora < tramos[0].inicio) return { estado: 'Aún cerrada', det: 'La jornada empieza a las 9:30.', clase: 'neutra', lectivo: true };
+  if (ahora.hora >= tramos[3].fin) return { estado: 'Cerrada', det: 'La jornada ha terminado.', clase: 'neutra', lectivo: true };
+  return { estado: 'Recreo', det: 'Se reanuda a las 12:00.', clase: 'neutra', lectivo: true };
+}
+
+function vInicio(){
+  const { ahora, tramos, hoy } = S.estado;
+  const sit = situacionAhora();
+  const pills = sit.lectivo ? tramos.map(t => {
+    const r = hoy.find(x => x.tramo === t.n);
+    const pasado = ahora.hora >= t.fin;
+    const cls = ['th', r ? 'ocu' : '', ahora.tramoActual === t.n ? 'act' : '', pasado ? 'pas' : ''].join(' ');
+    return `<div class="${cls}"><div class="h">${t.inicio}</div><div class="q">${r ? esc(r.maestro.split(' ')[0]) : 'Libre'}</div></div>`;
+  }).join('') : '';
+
+  const sug = S.publicas ? S.publicas.sugerencias : [];
+  const res = S.publicas ? S.publicas.resenas : [];
+  const nPend = S.pendientes ? S.pendientes.sugerencias.length + S.pendientes.resenas.length : 0;
+
+  return cabecera() + `
+  <button class="card hero" style="width:100%;text-align:left" onclick="irHoy()">
+    <div class="deco"></div>
+    <div class="etq">La biblioteca ahora</div>
+    <div class="estado">${sit.estado}</div>
+    <div class="det">${esc(sit.det)}</div>
+    ${pills ? `<div class="tramos-hoy">${pills}</div>` : ''}
+    <div class="fila" style="margin-top:16px"><span class="pill neutra">Ver calendario completo</span><span class="ir" style="color:#AEB6CC">›</span></div>
+  </button>
+
+  <div class="grid2" style="margin-top:14px">
+    <button class="card mini" onclick="S.buzonTab='sugerencias';ir('buzon')">
+      <div class="fila"><span class="icono">💡</span>${nPend && esMaestro() ? `<span class="badge">${nPend}</span>` : ''}</div>
+      <div><div class="n">${sug.length}</div><div class="etq" style="margin-top:4px">Sugerencias</div>
+      <div class="sub">${sug[0] ? esc(sug[0].titulo) : 'Aún no hay ninguna'}</div></div>
+    </button>
+    <button class="card mini" onclick="S.buzonTab='resenas';ir('buzon')">
+      <div class="fila"><span class="icono">📖</span></div>
+      <div><div class="n">${res.length}</div><div class="etq" style="margin-top:4px">Reseñas</div>
+      <div class="sub">${res[0] ? esc(res[0].libro) : 'Aún no hay ninguna'}</div></div>
+    </button>
+  </div>
+
+  <button class="card" style="width:100%;text-align:left;margin-top:14px" onclick="ir('perfil')">
+    <div class="fila">
+      <div><div class="etq">Tu perfil</div>
+      <div style="font-weight:600;margin-top:4px">${esMaestro() ? esc(S.sesion.maestro.nombre) + (esAdmin() ? ' · administrador' : ' · maestro/a')
+        : S.alumno ? esc(S.alumno.alias) + ' · alumno/a' : 'Elige si eres alumno/a o maestro/a'}</div></div>
+      <span class="ir">›</span>
+    </div>
+  </button>`;
+}
+
+function irHoy(){
+  S.mesVista = S.estado.mes; ir('calendario');
+  const f = S.estado.ahora.fecha, ds = diaSem(f);
+  if (ds !== 0 && ds !== 6) abrirDia(f);
+}
+
+/* ============ CALENDARIO ============ */
+function vCalendario(){
+  const [y, m] = S.mesVista.split('-').map(Number);
+  const reservas = S.meses[S.mesVista];
+  let celdas = ['L','M','X','J','V'].map(d => `<div class="dsem">${d}</div>`).join('');
+  if (!reservas) {
+    cargarEstado(S.mesVista).then(pintar).catch(() => aviso('No se pudo cargar el mes', true));
+    return cabecera('Reservas') + navMes(y, m) + '<div class="cargando">Cargando…</div>';
+  }
+  const dias = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  let primero = true;
+  for (let d = 1; d <= dias; d++) {
+    const f = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const ds = diaSem(f);
+    if (ds === 0 || ds === 6) continue;
+    if (primero) { for (let i = 1; i < ds; i++) celdas += '<div class="dia vacio"></div>'; primero = false; }
+    const fest = S.estado.festivos.find(x => x.fecha === f);
+    const delDia = reservas.filter(r => r.fecha === f);
+    const barras = [1,2,3,4].map(n => `<i class="${delDia.some(r => r.tramo === n) ? 'o' : ''}"></i>`).join('');
+    const cls = ['dia', f === S.estado.ahora.fecha ? 'hoy' : '', f < S.estado.ahora.fecha ? 'pasado' : '', fest ? 'fest' : ''].join(' ');
+    celdas += `<button class="${cls}" onclick="abrirDia('${f}')"><span class="num">${d}</span>
+      ${fest ? `<span class="fl">${esc((fest.motivo || 'Festivo').slice(0,14))}</span>` : `<span class="barras">${barras}</span>`}</button>`;
+  }
+  return cabecera('Reservas') + navMes(y, m) + `<div class="cal">${celdas}</div>
+    <div class="leyenda"><span><i style="background:#CFE3D6"></i>Libre</span><span><i style="background:var(--teja)"></i>Reservada</span></div>
+    <p class="ayuda" style="text-align:center;margin-top:14px">Cada barra es una sesión: 9:30 · 10:30 · 12:00 · 13:00</p>
+    ${!esMaestro() ? '<p class="ayuda" style="text-align:center">Solo el profesorado puede reservar.</p>' : ''}`;
+}
+
+function navMes(y, m){
+  return `<div class="mesnav"><button class="redondo" onclick="cambiarMes(-1)">‹</button>
+    <h2>${mayus(MESES[m-1])} ${y}</h2><button class="redondo" onclick="cambiarMes(1)">›</button></div>`;
+}
+function cambiarMes(delta){
+  let [y, m] = S.mesVista.split('-').map(Number);
+  m += delta; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+  S.mesVista = `${y}-${String(m).padStart(2,'0')}`; pintar();
+}
+
+function abrirDia(f){
+  const reservas = (S.meses[f.slice(0,7)] || []).filter(r => r.fecha === f);
+  const fest = S.estado.festivos.find(x => x.fecha === f);
+  const ahora = ahoraCompleto();
+  const limite = sumarDias(S.estado.ahora.fecha, S.estado.diasAntelacion);
+  let cuerpo;
+  if (fest) cuerpo = `<p class="ayuda" style="font-size:15px">No hay clase: ${esc(fest.motivo || 'festivo')}.</p>`;
+  else cuerpo = S.estado.tramos.map(t => {
+    const r = reservas.find(x => x.tramo === t.n);
+    const pasado = (f + ' ' + t.fin) <= ahora;
+    let accion = '';
+    if (r) {
+      const puede = esMaestro() && !pasado && (r.maestroId === S.sesion.maestro.id || esAdmin());
+      if (puede) accion = `<button class="btn-peq peligro" onclick="anular('${r.id}','${f}')">Anular</button>`;
+      return `<div class="tramo-fila"><div class="hora">${t.inicio}<small>${t.fin}</small></div>
+        <div class="info"><b>${esc(r.maestro)}</b><span>${esc(r.grupo)}</span></div>${accion}</div>`;
+    }
+    if (esMaestro() && !pasado && f <= limite)
+      accion = `<button class="btn-peq" onclick="mostrarReserva(${t.n})">Reservar</button>`;
+    return `<div class="tramo-fila"><div class="hora">${t.inicio}<small>${t.fin}</small></div>
+      <div class="info"><span class="pill libre" style="${pasado ? 'opacity:.5' : ''}"><span class="punto"></span>Libre</span>
+      <div class="reservar-form" id="rf${t.n}" style="display:none">
+        <input id="gr${t.n}" maxlength="40" placeholder="Grupo o motivo (p. ej. 4.º A)">
+        <button class="btn-peq" onclick="reservar('${f}',${t.n},this)">OK</button></div></div>
+      <span id="rb${t.n}">${accion}</span></div>`;
+  }).join('');
+  abrirHoja(`<h2>${mayus(fechaLarga(f))}</h2>
+    <p class="ayuda" style="margin-bottom:6px">${esMaestro() ? 'Pulsa «Reservar» en una sesión libre.' : 'Consulta de reservas.'}</p>${cuerpo}`);
+}
+
+function mostrarReserva(n){
+  $('#rf' + n).style.display = 'flex'; $('#rb' + n).style.display = 'none';
+  const ult = leer('bib_ultimoGrupo'); if (ult) $('#gr' + n).value = ult;
+  $('#gr' + n).focus();
+}
+
+async function reservar(f, n, btn){
+  const grupo = $('#gr' + n).value.trim();
+  if (!grupo) { aviso('Indica el grupo o el motivo', true); return; }
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    await api('reservar', { token: S.sesion.token, fecha: f, tramo: n, grupo }, true);
+    guardar('bib_ultimoGrupo', grupo);
+    aviso('Reserva hecha ✓');
+  } catch(e){ aviso(e.message, true); }
+  await recargarMes(f); abrirDia(f);
+}
+
+async function anular(id, f){
+  if (!confirmarDoble(id)) return;
+  try { await api('anular', { token: S.sesion.token, id }, true); aviso('Reserva anulada'); }
+  catch(e){ aviso(e.message, true); }
+  await recargarMes(f); abrirDia(f);
+}
+// Doble pulsación en lugar de confirm() para no bloquear la app.
+function confirmarDoble(id){
+  if (confirmarDoble.id === id && Date.now() - confirmarDoble.t < 4000) return true;
+  confirmarDoble.id = id; confirmarDoble.t = Date.now(); aviso('Pulsa otra vez «Anular» para confirmar'); return false;
+}
+
+async function recargarMes(f){
+  const mes = f.slice(0,7);
+  await cargarEstado();
+  if (mes !== S.estado.mes) await cargarEstado(mes);
+  pintar();
+}
+
+/* ============ BUZÓN ============ */
+function vBuzon(){
+  const tab = S.buzonTab;
+  const lista = S.publicas ? S.publicas[tab] : [];
+  let html = cabecera('Buzón') + `<div class="seg">
+    <button class="${tab === 'sugerencias' ? 'on' : ''}" onclick="S.buzonTab='sugerencias';pintar()">💡 Sugerencias</button>
+    <button class="${tab === 'resenas' ? 'on' : ''}" onclick="S.buzonTab='resenas';pintar()">📖 Reseñas</button></div>`;
+  if (!lista.length) html += `<div class="vacio-msg">${tab === 'sugerencias' ? 'Todavía no hay sugerencias.<br>¡Sé el primero en proponer algo!' : 'Todavía no hay reseñas.<br>¿Qué libro te ha gustado?'}</div>`;
+  else html += lista.map((x, i) => `<button class="card item" onclick="verMensaje('${tab}',${i})">
+      ${tab === 'resenas' ? `<div class="estrellas">${estrellas(x.valoracion)}</div><h3>${esc(x.libro)}</h3><p style="margin-bottom:6px;font-style:italic">${esc(x.autorLibro)}</p>` : `<h3>${esc(x.titulo)}</h3>`}
+      <p>${esc(x.texto)}</p>
+      <div class="meta">${esc(x.alias)}${x.clase ? ' · ' + esc(x.clase) : ''}${x.tipoAutor === 'maestro' ? ' · profesorado' : ''} · ${fechaCorta(x.creada)}</div>
+    </button>`).join('');
+  return html + `<button class="fab">＋ Escribir</button>`;
+}
+
+function verMensaje(tab, i){
+  const x = S.publicas[tab][i];
+  abrirHoja(tab === 'resenas'
+    ? `<div class="estrellas" style="font-size:22px">${estrellas(x.valoracion)}</div><h2>${esc(x.libro)}</h2>
+       <p style="font-style:italic;color:var(--tinta2)">${esc(x.autorLibro)}</p><div class="linea"></div>
+       <p style="white-space:pre-wrap">${esc(x.texto)}</p><div class="meta">${esc(x.alias)}${x.clase ? ' · ' + esc(x.clase) : ''} · ${fechaCorta(x.creada)}</div>`
+    : `<h2>${esc(x.titulo)}</h2><div class="meta" style="margin-top:2px">${esc(x.alias)}${x.clase ? ' · ' + esc(x.clase) : ''} · ${fechaCorta(x.creada)}</div>
+       <div class="linea"></div><p style="white-space:pre-wrap">${esc(x.texto)}</p>`);
+}
+
+function nuevoMensaje(){
+  if (!esMaestro() && !S.alumno) {
+    abrirHoja(`<h2>¿Quién eres?</h2><p class="ayuda" style="font-size:15px">Para escribir, primero entra como alumno/a (con el código de tu clase) o como maestro/a.</p>
+      <button class="btn" onclick="cerrarHoja();ir('perfil')">Ir a mi perfil</button>`);
+    return;
+  }
+  const res = S.buzonTab === 'resenas';
+  abrirHoja(`<h2>${res ? 'Nueva reseña' : 'Nueva sugerencia'}</h2>
+    ${res ? `<label>Título del libro</label><input id="fLibro" maxlength="100">
+      <label>Autor o autora</label><input id="fAutor" maxlength="80" placeholder="Si no lo sabes, déjalo en blanco">
+      <label>¿Cuánto te ha gustado?</label><div class="selector-estrellas" id="fEst">${[1,2,3,4,5].map(n => `<button data-n="${n}" onclick="ponerEstrellas(${n})">★</button>`).join('')}</div>
+      <label>Tu opinión</label><textarea id="fTexto" maxlength="1000" placeholder="¿De qué trata? ¿Se lo recomendarías a alguien?"></textarea>`
+    : `<label>Título</label><input id="fTitulo" maxlength="80" placeholder="Por ejemplo: más libros de dinosaurios">
+      <label>Tu sugerencia</label><textarea id="fTexto" maxlength="1000"></textarea>`}
+    ${!esMaestro() ? '<p class="ayuda">Un maestro o maestra lo revisará antes de publicarlo.</p>' : ''}
+    <button class="btn" id="fEnviar" onclick="enviarMensaje(${res})">Enviar</button>`);
+  ponerEstrellas.n = 0;
+}
+function ponerEstrellas(n){ ponerEstrellas.n = n; document.querySelectorAll('#fEst button').forEach(b => b.classList.toggle('on', +b.dataset.n <= n)); }
+
+async function enviarMensaje(res){
+  const quien = esMaestro() ? { token: S.sesion.token } : { codigoClase: S.alumno.codigoClase, alias: S.alumno.alias };
+  const datos = res
+    ? { libro: $('#fLibro').value, autorLibro: $('#fAutor').value.trim() || '-', valoracion: ponerEstrellas.n, texto: $('#fTexto').value }
+    : { titulo: $('#fTitulo').value, texto: $('#fTexto').value };
+  if (res && !ponerEstrellas.n) { aviso('Elige las estrellas', true); return; }
+  const b = $('#fEnviar'); b.disabled = true; b.textContent = 'Enviando…';
+  try {
+    const j = await api(res ? 'enviarResena' : 'enviarSugerencia', Object.assign(quien, datos), true);
+    cerrarHoja();
+    aviso(j.estado === 'aprobada' ? 'Publicado ✓' : '¡Enviado! Se publicará cuando lo revisen ✓');
+    await cargarPublicas(); pintar();
+  } catch(e){ aviso(e.message, true); b.disabled = false; b.textContent = 'Enviar'; }
+}
+
+/* ============ PERFIL ============ */
+function vPerfil(){
+  let html = cabecera('Perfil');
+  if (esMaestro()) return html + perfilMaestro();
+  if (S.alumno) return html + `<div class="card"><div class="etq">Alumno/a</div><h2 style="margin-top:4px">${esc(S.alumno.alias)}</h2>
+      <p class="ayuda">Código de clase: <span class="codigo">${esc(S.alumno.codigoClase)}</span></p>
+      <p class="ayuda">Puedes escribir sugerencias y reseñas de libros. Las reservas las hace tu maestro o maestra.</p>
+      <button class="btn sec" onclick="salirAlumno()">Cambiar de usuario</button></div>`;
+  return html + `<p class="ayuda" style="font-size:15px;margin-bottom:14px;text-align:center">¿Quién eres?</p>
+    <div class="roles">
+      <button class="card rol" onclick="formAlumno()"><div class="e">🎒</div><h3>Alumno/a</h3><p>Escribe sugerencias y reseñas</p></button>
+      <button class="card rol" onclick="formMaestro('entrar')"><div class="e">🍎</div><h3>Maestro/a</h3><p>Reserva la biblioteca</p></button>
+    </div>`;
+}
+
+function formAlumno(){
+  abrirHoja(`<h2>Entrar como alumno/a</h2>
+    <label>Código de tu clase</label><input id="aCod" maxlength="12" placeholder="Te lo da tu maestro/a" style="text-transform:uppercase">
+    <label>Tu nombre</label><input id="aAlias" maxlength="20" placeholder="Solo el nombre, sin apellidos">
+    <p class="ayuda">No pongas apellidos ni datos personales.</p>
+    <button class="btn" onclick="guardarAlumno()">Entrar</button>`);
+}
+function guardarAlumno(){
+  const codigoClase = $('#aCod').value.trim().toUpperCase(), alias = $('#aAlias').value.trim();
+  if (!codigoClase || !alias) { aviso('Rellena los dos campos', true); return; }
+  S.alumno = { codigoClase, alias }; guardar('bib_alumno', S.alumno); cerrarHoja(); pintar(); aviso('¡Hola, ' + alias + '!');
+}
+function salirAlumno(){ S.alumno = null; guardar('bib_alumno', null); pintar(); }
+
+function formMaestro(modo){
+  const reg = modo === 'registro';
+  abrirHoja(`<h2>${reg ? 'Alta de maestro/a' : 'Entrar como maestro/a'}</h2>
+    ${reg ? '<label>Código de centro</label><input id="mCentro" style="text-transform:uppercase" placeholder="Te lo da el administrador">' : ''}
+    <label>Nombre y apellido</label><input id="mNombre" maxlength="40" placeholder="Así aparecerá en las reservas" autocomplete="username">
+    <label>Clave personal</label><input id="mPin" type="password" placeholder="Mínimo 4 caracteres" autocomplete="${reg ? 'new-password' : 'current-password'}">
+    ${reg ? '<label>Repite la clave</label><input id="mPin2" type="password" autocomplete="new-password">' : ''}
+    <button class="btn" id="mBtn" onclick="${reg ? 'registrarMaestro()' : 'entrarMaestro()'}">${reg ? 'Darme de alta' : 'Entrar'}</button>
+    <button class="btn sec" onclick="formMaestro('${reg ? 'entrar' : 'registro'}')">${reg ? 'Ya tengo cuenta' : 'Es mi primera vez'}</button>`);
+}
+async function registrarMaestro(){
+  if ($('#mPin').value !== $('#mPin2').value) { aviso('Las claves no coinciden', true); return; }
+  await accesoMaestro('registrarMaestro', { codigoCentro: $('#mCentro').value, nombre: $('#mNombre').value, pin: $('#mPin').value });
+}
+async function entrarMaestro(){ await accesoMaestro('entrar', { nombre: $('#mNombre').value, pin: $('#mPin').value }); }
+async function accesoMaestro(accion, datos){
+  const b = $('#mBtn'); b.disabled = true;
+  try {
+    const j = await api(accion, datos, true);
+    S.sesion = { token: j.token, maestro: j.maestro }; guardar('bib_sesion', S.sesion);
+    cerrarHoja(); aviso('Bienvenido/a, ' + j.maestro.nombre.split(' ')[0]);
+    await cargarPendientes(); pintar(); cargarClases();
+  } catch(e){ aviso(e.message, true); b.disabled = false; }
+}
+function salirMaestro(){ S.sesion = null; S.pendientes = null; S.clases = null; guardar('bib_sesion', null); pintar(); }
+
+function perfilMaestro(){
+  const m = S.sesion.maestro;
+  const p = S.pendientes || { sugerencias: [], resenas: [] };
+  const pend = [...p.sugerencias.map(x => Object.assign({ _t: 'sugerencia' }, x)), ...p.resenas.map(x => Object.assign({ _t: 'resena' }, x))];
+  if (!S.clases) cargarClases();
+  return `<div class="card"><div class="etq">${m.rol === 'admin' ? 'Administrador' : 'Maestro/a'}</div>
+      <h2 style="margin-top:4px">${esc(m.nombre)}</h2></div>
+
+    <div class="card"><div class="fila"><div class="etq">Revisar comentarios</div>${pend.length ? `<span class="badge">${pend.length}</span>` : ''}</div>
+      ${pend.length ? pend.map(x => `<div style="padding:12px 0;border-bottom:1px solid var(--linea)">
+          <b>${esc(x._t === 'resena' ? '📖 ' + x.libro : '💡 ' + x.titulo)}</b>${x._t === 'resena' ? ` <span class="estrellas">${estrellas(+x.valoracion)}</span>` : ''}
+          <p style="font-size:14px;color:var(--tinta2);margin-top:4px;white-space:pre-wrap">${esc(x.texto)}</p>
+          <div class="meta" style="margin-top:4px">${esc(x.alias)} · ${esc(x.clase)} · ${fechaCorta(x.creada)}</div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn-peq" onclick="moderar('${x._t}','${x.id}','aprobada')">Publicar</button>
+            <button class="btn-peq peligro" onclick="moderar('${x._t}','${x.id}','rechazada')">Descartar</button></div></div>`).join('')
+        : '<p class="ayuda">No hay nada pendiente.</p>'}
+    </div>
+
+    <div class="card"><div class="etq">Códigos de clase</div>
+      <p class="ayuda">Da el código a tu alumnado para que pueda escribir. Si se difunde fuera de clase, desactívalo y crea otro.</p>
+      <div id="clases">${pintarClases()}</div>
+      <div class="reservar-form" style="margin-top:12px"><input id="nClase" maxlength="30" placeholder="Nombre de la clase (p. ej. 3.º A)">
+      <button class="btn-peq" onclick="crearClase()">Crear</button></div>
+    </div>
+
+    <button class="btn sec" onclick="salirMaestro()">Cerrar sesión</button>`;
+}
+
+function pintarClases(){
+  if (!S.clases) return '<p class="ayuda">Cargando…</p>';
+  if (!S.clases.length) return '<p class="ayuda">Aún no has creado ninguna.</p>';
+  return S.clases.map(c => `<div class="fila" style="padding:10px 0;border-bottom:1px solid var(--linea);${c.activa === 'sí' ? '' : 'opacity:.45'}">
+      <div><b>${esc(c.nombre)}</b><div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>
+      ${c.activa === 'sí' ? `<button class="btn-peq sec" onclick="desactivarClase('${c.codigo}')">Desactivar</button>` : '<span class="ayuda">Desactivado</span>'}</div>`).join('');
+}
+async function cargarClases(){
+  if (!esMaestro()) return;
+  try { S.clases = (await api('listarClases', { token: S.sesion.token })).clases; } catch(e){ S.clases = []; }
+  const el = $('#clases'); if (el) el.innerHTML = pintarClases();
+}
+async function crearClase(){
+  const nombre = $('#nClase').value.trim(); if (!nombre) { aviso('Escribe el nombre de la clase', true); return; }
+  try { const j = await api('crearClase', { token: S.sesion.token, nombre }, true); aviso('Código creado: ' + j.codigo); $('#nClase').value = ''; await cargarClases(); }
+  catch(e){ aviso(e.message, true); }
+}
+async function desactivarClase(codigo){
+  if (!confirmarDoble(codigo)) return;
+  try { await api('desactivarClase', { token: S.sesion.token, codigo }, true); await cargarClases(); aviso('Código desactivado'); }
+  catch(e){ aviso(e.message, true); }
+}
+async function moderar(tipo, id, decision){
+  try {
+    await api('moderar', { token: S.sesion.token, tipo, id, decision }, true);
+    aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado');
+    await Promise.all([cargarPendientes(), cargarPublicas()]); pintar();
+  } catch(e){ aviso(e.message, true); }
+}
+
+/* ============ ARRANQUE ============ */
+pintar();
+refrescar();
+setInterval(() => { if (!document.hidden && !$('#hoja').classList.contains('on')) refrescar(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescar(); });
+</script>
+</body>
+</html>
