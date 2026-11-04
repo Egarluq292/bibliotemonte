@@ -203,6 +203,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
+const VERSION_APP = '1.12';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -651,8 +652,10 @@ async function enviarMensaje(res){
 }
 
 /* ============ PERFIL ============ */
-function vPerfil(){
+function vPerfil(){ return vPerfilBase() + `<p class="ayuda" style="text-align:center;margin-top:22px">Versión ${VERSION_APP} · calendario ${esc(S.cal.curso || 'sin cargar')}</p>`; }
+function vPerfilBase(){
   let html = cabecera('Perfil');
+  html += '';
   if (esMaestro()) return html + `<button class="card guia-acceso" onclick="ir('guia')"><span class="icono">📘</span>
       <span style="flex:1;text-align:left"><b>Guía para el profesorado</b><span class="ayuda" style="display:block;margin-top:2px">Cómo reservar, crear códigos de clase y revisar comentarios</span></span><span class="ir">›</span></button>`
     + perfilMaestro() + `<div style="margin-top:14px">${tarjetaCompartir()}</div><div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
