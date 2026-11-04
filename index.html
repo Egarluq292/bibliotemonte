@@ -470,15 +470,15 @@ async function reservar(f, n, btn){
 }
 
 async function anular(id, f){
-  if (!confirmarDoble(id)) return;
+  if (!confirmarDoble(id, 'Toca otra vez para anular la reserva')) return;
   try { await api('anular', { token: S.sesion.token, id }, true); aviso('Reserva anulada'); }
   catch(e){ aviso(e.message, true); }
   await recargarMes(f); abrirDia(f);
 }
 // Doble pulsación en lugar de confirm() para no bloquear la app.
-function confirmarDoble(id){
+function confirmarDoble(id, msg){
   if (confirmarDoble.id === id && Date.now() - confirmarDoble.t < 4000) return true;
-  confirmarDoble.id = id; confirmarDoble.t = Date.now(); aviso('Pulsa otra vez «Anular» para confirmar'); return false;
+  confirmarDoble.id = id; confirmarDoble.t = Date.now(); aviso(msg || 'Toca otra vez para confirmar'); return false;
 }
 
 async function recargarMes(f){
@@ -660,7 +660,7 @@ function vGuia(){
       <p>Cada día tiene <b>cuatro barras</b>, una por sesión (9:30 · 10:30 · 12:00 · 13:00): <b style="color:#2F8550">verde</b> = libre, <b style="color:#B03A86">magenta</b> = reservada. Usa ‹ › para cambiar de mes.</p>`, 'calendario')}
     ${paso(4, 'Reservar', `<ol><li>Toca el día.</li><li>En una sesión libre, pulsa <b>Reservar</b>.</li><li>Elige tu clase en los botones (o escribe el motivo).</li><li>Pulsa <b>OK</b>.</li></ol>
       <p>Si otra persona la reserva un instante antes, la app te avisa: <b>nunca habrá dos reservas a la misma hora</b>.</p>`, 'reservar')}
-    ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>pulsar dos veces</b>.</p>
+    ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>tocarlo dos veces</b>: la app te lo indica.</p>
       <p>Solo puedes anular <b>tus</b> reservas. Si necesitas una hora reservada por otra persona, habla con ella.</p>`, 'anular')}
     ${paso(6, 'Crear los códigos de tus clases', `<p>En <b>Perfil → Códigos de clase</b>, escribe el nombre y pulsa <b>Crear</b>. Crea una por cada grupo o materia que des (p. ej. «Lengua 5.º», «Cono 6.º»).</p>
       <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre, <b>sin apellidos</b>.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
@@ -700,16 +700,16 @@ async function cargarAdmin(){
   catch(e){ S.admin = { error: /desconocida/.test(e.message) ? 'Falta actualizar el servidor en Google Apps Script.' : e.message }; }
   const el = $('#admin'); if (el) el.innerHTML = pintarAdmin();
 }
-async function accionAdmin(accion, datos, clave){
-  if (clave && !confirmarDoble(clave)) return null;
+async function accionAdmin(accion, datos, clave, msg){
+  if (clave && !confirmarDoble(clave, msg)) return null;
   try { const j = await api(accion, Object.assign({ token: S.sesion.token }, datos), true); await cargarAdmin(); return j; }
   catch(e){ aviso(e.message, true); return null; }
 }
-async function cambiarCodigoCentro(){ const j = await accionAdmin('cambiarCodigoCentro', {}, 'centro'); if (j) aviso('Nuevo código: ' + j.codigoCentro); }
-async function cambiarRol(id, rol){ const j = await accionAdmin('cambiarRol', { id, rol }, 'rol' + id); if (j) aviso(rol === 'admin' ? 'Ahora es administrador' : 'Ya no es administrador'); }
-async function bajaMaestro(id){ const j = await accionAdmin('bajaMaestro', { id }, 'baja' + id); if (j) aviso(j.baja + ' dado de baja'); }
+async function cambiarCodigoCentro(){ const j = await accionAdmin('cambiarCodigoCentro', {}, 'centro', 'Toca otra vez para cambiar el código de centro'); if (j) aviso('Nuevo código: ' + j.codigoCentro); }
+async function cambiarRol(id, rol){ const j = await accionAdmin('cambiarRol', { id, rol }, 'rol' + id, rol === 'admin' ? 'Toca otra vez para hacerlo administrador' : 'Toca otra vez para quitarle el papel de administrador'); if (j) aviso(rol === 'admin' ? 'Ahora es administrador' : 'Ya no es administrador'); }
+async function bajaMaestro(id){ const j = await accionAdmin('bajaMaestro', { id }, 'baja' + id, 'Toca otra vez para darlo de baja'); if (j) aviso(j.baja + ' dado de baja'); }
 async function restablecerClave(id){
-  const j = await accionAdmin('restablecerClave', { id }, 'clave' + id);
+  const j = await accionAdmin('restablecerClave', { id }, 'clave' + id, 'Toca otra vez para generar una clave nueva');
   if (j) abrirHoja(`<h2>Clave provisional</h2>
     <p class="ayuda" style="font-size:15px">Dásela a <b>${esc(j.nombre)}</b>. Con ella podrá entrar y después cambiarla en «Cambiar mi clave».</p>
     <div style="text-align:center;margin:22px 0"><span class="codigo" style="font-size:30px;padding:10px 18px">${esc(j.provisional)}</span></div>
@@ -749,7 +749,7 @@ async function crearClase(){
   catch(e){ aviso(e.message, true); }
 }
 async function desactivarClase(codigo){
-  if (!confirmarDoble(codigo)) return;
+  if (!confirmarDoble(codigo, 'Toca otra vez para desactivar el código')) return;
   try { await api('desactivarClase', { token: S.sesion.token, codigo }, true); await cargarClases(); aviso('Código desactivado'); }
   catch(e){ aviso(e.message, true); }
 }
