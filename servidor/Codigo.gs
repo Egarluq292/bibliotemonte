@@ -34,7 +34,7 @@ const TRAMOS = [
 const HOJAS = {
   Config:      ['clave', 'valor'],
   Maestros:    ['id', 'nombre', 'nombreClave', 'sal', 'hash', 'rol', 'token', 'alta'],
-  Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta'],
+  Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta', 'alumnos'],
   Reservas:    ['id', 'fecha', 'tramo', 'maestroId', 'maestro', 'grupo', 'creada', 'estado', 'anuladaPor'],
   Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
   Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
@@ -44,7 +44,7 @@ const HOJAS = {
 const ACCIONES_ESCRITURA = [
   'registrarMaestro', 'entrar', 'reservar', 'anular', 'enviarSugerencia', 'enviarResena',
   'moderar', 'crearClase', 'desactivarClase',
-  'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro'
+  'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro', 'alumnosClase'
 ];
 
 /* ===================== CALENDARIO ESCOLAR ===================== */
@@ -127,7 +127,7 @@ function manejar(accion, p) {
   const acciones = {
     estado, publicas, registrarMaestro, entrar, reservar, anular,
     enviarSugerencia, enviarResena, pendientes, moderar, crearClase, listarClases, desactivarClase,
-    cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro
+    cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro, alumnosClase
   };
   if (!acciones[accion]) throw new Error('Acción desconocida.');
   if (ACCIONES_ESCRITURA.indexOf(accion) === -1) return acciones[accion](p);
@@ -160,7 +160,13 @@ function estado(p) {
 /** Sugerencias y reseñas ya aprobadas (lo que ve todo el mundo). */
 function publicas() {
   const aprobadas = (hoja) => filas(hoja).filter(x => x.estado === 'aprobada').reverse().slice(0, 150);
+  // Número de alumnos por nombre de clase (para el ranking). No se envían los códigos.
+  const tam = {};
+  filas('Clases').filter(c => c.activa === 'sí' && Number(c.alumnos) > 0).forEach(c => {
+    tam[c.nombre] = Math.max(tam[c.nombre] || 0, Number(c.alumnos));
+  });
   return {
+    clases: Object.keys(tam).map(n => ({ nombre: n, alumnos: tam[n] })),
     sugerencias: aprobadas('Sugerencias').map(s => ({ id: s.id, creada: s.creada, tipoAutor: s.tipoAutor, alias: s.alias, clase: s.clase, titulo: s.titulo, texto: s.texto })),
     resenas: aprobadas('Resenas').map(r => ({ id: r.id, creada: r.creada, tipoAutor: r.tipoAutor, alias: r.alias, clase: r.clase, libro: r.libro, autorLibro: r.autorLibro, valoracion: Number(r.valoracion), texto: r.texto }))
   };
@@ -391,11 +397,26 @@ function crearClase(p) {
   const existentes = filas('Clases').map(c => c.codigo);
   let codigo;
   do { codigo = generarCodigo(); } while (existentes.indexOf(codigo) !== -1);
-  anadir('Clases', { codigo, nombre: texto(p.nombre, 30, 'nombre de la clase'), maestroId: m.id, activa: 'sí', alta: ahoraLocal().completo });
+  anadir('Clases', { codigo, nombre: texto(p.nombre, 30, 'nombre de la clase'), maestroId: m.id, activa: 'sí', alta: ahoraLocal().completo, alumnos: numAlumnos(p.alumnos) });
   return { codigo };
 }
 
 /** Clases del maestro (todas, si es administrador) con el alumnado que ha participado en cada una. */
+function numAlumnos(v) {
+  const n = Math.round(Number(v));
+  if (!(n >= 1 && n <= 60)) throw new Error('Indica cuántos alumnos tiene la clase (entre 1 y 60).');
+  return String(n);
+}
+
+/** { token, codigo, alumnos } — corrige el número de alumnos de una clase. */
+function alumnosClase(p) {
+  const m = maestroPorToken(p.token);
+  const c = filas('Clases').find(x => x.codigo === p.codigo);
+  if (!c || (c.maestroId !== m.id && m.rol !== 'admin')) throw new Error('No puedes modificar esa clase.');
+  escribir('Clases', c._fila, { alumnos: numAlumnos(p.alumnos) });
+  return { codigo: c.codigo, alumnos: Number(p.alumnos) };
+}
+
 function listarClases(p) {
   const m = maestroPorToken(p.token);
   const envios = filas('Sugerencias').concat(filas('Resenas')).filter(x => x.tipoAutor === 'alumno' && x.codigoClase);
@@ -414,7 +435,7 @@ function listarClases(p) {
       });
       const participantes = Object.keys(porAlumno).map(k => porAlumno[k]).sort((a, b) => b.envios - a.envios);
       participantes.forEach(a => a.mensajes.sort((x, y) => x.creada < y.creada ? 1 : -1));
-      return { codigo: c.codigo, nombre: c.nombre, activa: c.activa, mia: c.maestroId === m.id, participantes };
+      return { codigo: c.codigo, nombre: c.nombre, activa: c.activa, mia: c.maestroId === m.id, alumnos: Number(c.alumnos) || 0, participantes };
     })
   };
 }

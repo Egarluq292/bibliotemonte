@@ -135,6 +135,10 @@ textarea{min-height:120px;resize:vertical}
 .tramo-fila .info b{display:block}
 .tramo-fila .info span{font-size:13px;color:var(--tinta2)}
 .reservar-form{display:flex;gap:8px;margin-top:8px}
+.crear-clase{display:grid;grid-template-columns:1fr 104px auto;gap:8px;margin-top:12px}
+.crear-clase input{padding:10px;font-size:15px;min-width:0}
+.aviso-num{margin-top:8px;background:#FBF3DC;border:1px solid #F0DDA4;border-radius:12px;padding:8px 12px;font-size:13px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+.num-al{font-size:13px;font-weight:500}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .chip{padding:6px 12px;border-radius:999px;background:var(--papel2);color:var(--tinta);font-size:13px;font-weight:600;border:1.5px solid transparent}
 .chip.on{background:var(--tinta);color:#fff}
@@ -145,6 +149,8 @@ textarea{min-height:120px;resize:vertical}
 
 /* Barra inferior */
 .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 12px);width:min(530px,calc(100% - 28px));background:rgba(43,35,80,.96);backdrop-filter:blur(10px);border-radius:24px;display:grid;grid-template-columns:repeat(4,1fr);padding:8px;z-index:20;box-shadow:0 10px 30px rgba(43,35,80,.3)}
+.tabbar.tres{grid-template-columns:repeat(3,1fr)}
+.tabbar.tres button[data-v=calendario]{display:none}
 .tabbar button{color:#A9A2C6;font-size:11px;font-weight:600;padding:6px 0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .tabbar button .e{font-size:20px;filter:grayscale(1);opacity:.75}
 .tabbar button.on{color:var(--papel);background:rgba(255,255,255,.08)}
@@ -190,6 +196,28 @@ textarea{min-height:120px;resize:vertical}
 .cal.desde-izq{animation:desdeIzq .22s ease-out}
 @keyframes desdeDer{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
 @keyframes desdeIzq{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+.hero-alumno{padding-top:150px}
+.hero-alumno .estado{font-size:30px}
+.btn-oro{background:var(--oro);color:var(--tinta);margin-top:16px}
+.destacado{background:linear-gradient(160deg,#FFFEFB 0%,#FBF3DC 100%);border:1px solid #F0DDA4}
+.libro{display:flex;gap:14px;align-items:center;margin-top:12px}
+.portada{width:58px;height:80px;flex-shrink:0;border-radius:6px 10px 10px 6px;background:linear-gradient(135deg,var(--tinta) 0%,#5A3E8A 100%);box-shadow:inset 5px 0 0 rgba(0,0,0,.25),0 4px 10px rgba(43,35,80,.25);display:grid;place-items:center}
+.portada span{font-family:Fraunces,serif;font-size:28px;color:var(--oro);font-weight:700}
+.libro h3{font-size:20px;line-height:1.15}
+.libro .autor{font-size:14px;color:var(--tinta2);font-style:italic;margin-top:2px}
+.cita{margin-top:12px;font-size:14px;color:var(--tinta2);font-style:italic;border-left:3px solid var(--oro);padding-left:12px}
+.cita span{display:block;font-style:normal;font-size:12px;color:var(--suave);margin-top:4px}
+.ranking{margin-top:10px}
+.rk{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--linea)}
+.rk:last-child{border-bottom:0}
+.rk .med{width:30px;text-align:center;font-size:20px;font-weight:700;color:var(--suave)}
+.rk:not(.top) .med{font-size:13px}
+.rk .nom{flex:1;min-width:0}
+.rk .nom b{display:block}
+.rk .nom small{font-size:12px;color:var(--suave)}
+.rk .pts{font-family:Fraunces,serif;font-size:22px;font-weight:700;color:var(--tinta);min-width:28px;text-align:right;line-height:1}
+.rk .pts small{display:block;font-family:Inter,sans-serif;font-size:10px;font-weight:600;color:var(--suave);margin-top:3px}
+.rk.top:first-child .pts{color:var(--oro)}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -211,7 +239,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.15';
+const VERSION_APP = '1.16';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -377,10 +405,13 @@ document.querySelectorAll('#tabbar button').forEach(b => b.onclick = () => ir(b.
 function ir(v){ S.vista = v; window.scrollTo(0,0); pintar(); }
 
 function pintar(){
+  const prof = esMaestro();
+  if (!prof && S.vista === 'calendario') S.vista = 'inicio';
+  $('#tabbar').classList.toggle('tres', !prof);
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === S.vista));
   const app = $('#app');
   if (!S.estado) { app.innerHTML = cabecera() + '<div class="cargando">Cargando la biblioteca…</div>'; return; }
-  const vistas = { inicio: vInicio, calendario: vCalendario, buzon: vBuzon, perfil: vPerfil, guia: vGuia };
+  const vistas = { inicio: prof ? vInicio : vInicioAlumno, calendario: vCalendario, buzon: vBuzon, perfil: vPerfil, guia: vGuia };
   app.innerHTML = vistas[S.vista]();
   const fab = document.querySelector('.fab'); if (fab) fab.onclick = nuevoMensaje;
 }
@@ -466,6 +497,100 @@ function vInicio(){
 function irRevisar(){
   ir('perfil');
   setTimeout(() => { const el = $('#revision'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+}
+
+/* ============ INICIO DEL ALUMNADO ============ */
+const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** Libro del mes: más reseñas y, a igualdad, mejor media. Si no hay este mes, el mejor del curso. */
+function libroDestacado(){
+  const todas = (S.publicas && S.publicas.resenas) || [];
+  const mes = S.estado.ahora.fecha.slice(0, 7);
+  const agrupar = lista => {
+    const g = {};
+    lista.forEach(r => {
+      const k = norm(r.libro);
+      const x = g[k] || (g[k] = { libro: r.libro, autor: r.autorLibro, n: 0, suma: 0, mejor: null });
+      x.n++; x.suma += +r.valoracion;
+      if (!x.mejor || +r.valoracion > +x.mejor.valoracion || (+r.valoracion === +x.mejor.valoracion && r.texto.length > x.mejor.texto.length)) x.mejor = r;
+    });
+    return Object.values(g).sort((a, b) => b.n - a.n || b.suma / b.n - a.suma / a.n)[0];
+  };
+  const delMes = agrupar(todas.filter(r => (r.creada || '').slice(0, 7) === mes));
+  if (delMes) return Object.assign(delMes, { titulo: 'Libro del mes' });
+  const delCurso = agrupar(todas);
+  return delCurso ? Object.assign(delCurso, { titulo: 'Libro mejor valorado' }) : null;
+}
+
+/** Ranking de clases del mes: publicaciones por alumno (solo cuenta lo publicado). */
+function ranking(){
+  const mes = S.estado.ahora.fecha.slice(0, 7);
+  const p = S.publicas || { sugerencias: [], resenas: [], clases: [] };
+  const tam = {}; (p.clases || []).forEach(c => tam[norm(c.nombre)] = c.alumnos);
+  const g = {};
+  p.sugerencias.concat(p.resenas)
+    .filter(x => x.tipoAutor === 'alumno' && x.clase && (x.creada || '').slice(0, 7) === mes)
+    .forEach(x => {
+      const k = norm(x.clase);
+      const r = g[k] || (g[k] = { nombre: x.clase, n: 0, alumnos: tam[k] || 0 });
+      r.n++;
+    });
+  return Object.values(g).filter(r => r.alumnos > 0)
+    .map(r => Object.assign(r, { media: r.n / r.alumnos }))
+    .sort((a, b) => b.media - a.media || b.n - a.n).slice(0, 5);
+}
+
+function vInicioAlumno(){
+  const nombre = S.alumno ? S.alumno.alias : '';
+  const prox = proximos();
+  const libro = libroDestacado();
+  const rk = ranking();
+  const mesNombre = MESES[+S.estado.ahora.fecha.slice(5, 7) - 1];
+  const medallas = ['🥇', '🥈', '🥉', '4.º', '5.º'];
+  const res = S.publicas ? S.publicas.resenas.length : 0, sug = S.publicas ? S.publicas.sugerencias.length : 0;
+
+  return cabecera() + `
+  <div class="card hero hero-alumno">
+    <div class="etq">Biblioteca del cole</div>
+    <div class="estado">${nombre ? '¡Hola, ' + esc(nombre) + '!' : '¡Hola!'}</div>
+    <div class="det">${nombre ? '¿Qué estás leyendo? Cuéntaselo a tus compañeros.' : 'Entra con el código de tu clase para escribir reseñas y sugerencias.'}</div>
+    ${prox.length ? `<div class="proximos">${prox.map(e => `<div class="prox"><span>${e.icono}</span><span><b>${cuandoEs(e.fecha)}</b> · ${esc(e.texto)}</span></div>`).join('')}</div>` : ''}
+    <button class="btn btn-oro" onclick="${nombre ? "S.buzonTab='resenas';ir('buzon');setTimeout(nuevoMensaje,50)" : "ir('perfil')"}">${nombre ? '✍️ Escribir una reseña' : 'Entrar con mi código de clase'}</button>
+  </div>
+
+  <div class="card destacado">
+    <div class="fila"><div class="etq">⭐ ${libro ? libro.titulo : 'Libro del mes'}</div>${libro ? `<span class="ayuda">${libro.n === 1 ? '1 reseña' : libro.n + ' reseñas'}</span>` : ''}</div>
+    ${libro ? `<div class="libro">
+        <div class="portada"><span>${esc(libro.libro.slice(0, 1).toUpperCase())}</span></div>
+        <div style="min-width:0"><h3>${esc(libro.libro)}</h3>
+          ${libro.autor && libro.autor !== '-' ? `<p class="autor">${esc(libro.autor)}</p>` : ''}
+          <div class="estrellas" style="font-size:18px">${estrellas(Math.round(libro.suma / libro.n))} <small class="ayuda">${(libro.suma / libro.n).toFixed(1).replace('.', ',')}</small></div></div>
+      </div>
+      <p class="cita">«${esc(libro.mejor.texto.length > 140 ? libro.mejor.texto.slice(0, 137) + '…' : libro.mejor.texto)}»<span>— ${esc(libro.mejor.alias)}, ${esc(libro.mejor.clase)}</span></p>`
+    : '<p class="ayuda" style="margin-top:8px">Aún no hay reseñas. ¡Escribe la primera!</p>'}
+  </div>
+
+  <div class="card">
+    <div class="fila"><div class="etq">🏆 Clases más lectoras · ${mesNombre}</div></div>
+    ${rk.length ? `<div class="ranking">${rk.map((r, i) => `<div class="rk ${i < 3 ? 'top' : ''}">
+        <span class="med">${medallas[i]}</span>
+        <span class="nom"><b>${esc(r.nombre)}</b><small>${r.n === 1 ? '1 publicación' : r.n + ' publicaciones'} · ${r.alumnos} alumnos</small></span>
+        <span class="pts">${r.media.toFixed(1).replace('.', ',')}<small>por alumno</small></span></div>`).join('')}</div>
+      <p class="ayuda" style="margin-top:10px">Gana la clase con más reseñas y sugerencias publicadas por alumno este mes, así las clases pequeñas compiten igual.</p>`
+    : `<p class="ayuda" style="margin-top:8px">Este mes aún no hay clases en el ranking. Cuentan las reseñas y sugerencias publicadas de cada clase.</p>`}
+  </div>
+
+  <div class="grid2" style="margin-top:14px">
+    <button class="card mini" onclick="S.buzonTab='resenas';ir('buzon')">
+      <div class="fila"><span class="icono">📖</span></div>
+      <div><div class="n">${res}</div><div class="etq" style="margin-top:4px">Reseñas</div><div class="sub">Lee lo que opinan tus compañeros</div></div>
+    </button>
+    <button class="card mini" onclick="S.buzonTab='sugerencias';ir('buzon')">
+      <div class="fila"><span class="icono">💡</span></div>
+      <div><div class="n">${sug}</div><div class="etq" style="margin-top:4px">Sugerencias</div><div class="sub">Ideas para mejorar la biblioteca</div></div>
+    </button>
+  </div>
+  ${tarjetaInstalar(true)}`;
 }
 
 function irHoy(){ S.mesVista = S.estado.ahora.fecha.slice(0, 7); ir('calendario'); }
@@ -756,10 +881,12 @@ function perfilMaestro(){
     </div>
 
     <div class="card"><div class="etq">Códigos de clase</div>
-      <p class="ayuda">Crea una por cada grupo o materia que impartas (p. ej. «Lengua 5.º», «Cono 6.º»). Aparecerán al reservar y cada una tiene su código para el alumnado. Si un código se difunde, desactívalo y crea otro.</p>
+      <p class="ayuda">Crea una por cada grupo que atiendas, con el nombre del grupo (p. ej. «4.º A»). Aparecerán al reservar y cada una tiene su código para el alumnado. Si un código se difunde, desactívalo y crea otro.</p>
       <div id="clases">${pintarClases()}</div>
-      <div class="reservar-form" style="margin-top:12px"><input id="nClase" maxlength="30" placeholder="Clase (p. ej. 3.º A)">
+      <div class="crear-clase"><input id="nClase" maxlength="30" placeholder="Grupo (4.º A)">
+      <input id="nAlumnos" type="number" inputmode="numeric" min="1" max="60" placeholder="Alumnos">
       <button class="btn-peq" onclick="crearClase()">Crear</button></div>
+      <p class="ayuda" style="margin-top:6px">El número de alumnos sirve para que el ranking sea justo con las clases pequeñas.</p>
     </div>
 
     ${m.rol === 'admin' ? `<div class="card"><div class="etq">Administración</div><div id="admin">${pintarAdmin()}</div></div>` : ''}
@@ -796,7 +923,7 @@ function vGuia(){
   return `<header class="cab"><button class="redondo" onclick="ir('perfil')">‹</button>
       <div style="flex:1;text-align:center"><div class="centro">CEIP Fernando IV</div><div class="t" style="font-size:24px">Guía del profesorado</div></div>
       <span style="width:42px"></span></header>
-    <p class="ayuda" style="text-align:center;font-size:15px;margin:-4px 0 18px">Todo lo que necesitas en ocho pasos.</p>
+    <p class="ayuda" style="text-align:center;font-size:15px;margin:-4px 0 18px">Todo lo que necesitas en nueve pasos.</p>
     ${paso(1, 'Darte de alta', `<p>Ve a <b>Perfil → Maestro/a → «Es mi primera vez»</b>.</p>
       <ul><li>Escribe el <b>código de centro</b>: te lo da el administrador.</li><li>Pon tu <b>nombre y apellido</b> tal como quieres que salgan en las reservas.</li><li>Inventa una <b>clave</b> de al menos 4 caracteres. Nadie más la ve.</li></ul>
       <p>Solo se hace una vez. En otro dispositivo, usa <b>«Entrar»</b> con tu nombre y tu clave.</p>`, 'alta')}
@@ -808,11 +935,14 @@ function vGuia(){
       <p>Si otra persona la reserva un instante antes, la app te avisa: <b>nunca habrá dos reservas a la misma hora</b>.</p>`, 'reservar')}
     ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>tocarlo dos veces</b>: la app te lo indica.</p>
       <p>Solo puedes anular <b>tus</b> reservas. Si necesitas una hora reservada por otra persona, habla con ella.</p>`, 'anular')}
-    ${paso(6, 'Crear los códigos de tus clases', `<p>En <b>Perfil → Códigos de clase</b>, escribe el nombre y pulsa <b>Crear</b>. Crea una por cada grupo o materia que des (p. ej. «Lengua 5.º», «Cono 6.º»).</p>
-      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre, <b>sin apellidos</b>.</li><li>Debajo de cada código verás <b>qué alumnos han participado</b> y cuántos mensajes ha enviado cada uno. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
+    ${paso(6, 'Crear los códigos de tus clases', `<p>En <b>Perfil → Códigos de clase</b>, escribe el <b>nombre del grupo</b> (p. ej. «4.º A»), <b>cuántos alumnos tiene</b> y pulsa <b>Crear</b>. Crea uno por cada grupo que atiendas.</p>
+      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre e inicial, <b>sin apellidos</b> (p. ej. «Lucía M.»).</li><li>Debajo de cada código verás <b>qué alumnos han participado</b> y cuántos mensajes ha enviado cada uno. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>El número de alumnos se puede corregir tocando <b>«✏️»</b>. Es importante que sea correcto: el ranking lo usa para comparar clases.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
     ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
       <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>`, 'revisar')}
-    ${paso(8, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
+    ${paso(8, 'Lo que ve tu alumnado', `<p>El alumnado tiene una app más sencilla, <b>sin la pestaña de reservas</b>. En su Inicio ve:</p>
+      <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes.</li></ul>
+      <p>Solo cuenta lo que tú publicas: <b>descartar</b> un mensaje también lo deja fuera del ranking.</p>`, 'alumnado')}
+    ${paso(9, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
       <p>El mensaje <b>no lleva el código de clase</b>: ese lo das tú en el aula.</p>`, 'compartir')}
     <section class="card guia-paso"><h3>¿Problemas?</h3><div class="guia-texto">
       <ul><li><b>He olvidado mi clave:</b> pide al administrador una clave provisional y luego cámbiala en <b>Perfil → Cambiar mi clave</b>.</li>
@@ -887,10 +1017,24 @@ function pintarClases(){
           <div class="chips">${part.map((a, i) => `<button class="chip" onclick="verAlumno('${c.codigo}',${i})">${esc(a.alias)} <small>${a.envios}</small></button>`).join('')}</div></div>`
       : '<div class="part ayuda">Aún no ha escrito nadie con este código.</div>';
     return `<div style="padding:12px 0;border-bottom:1px solid var(--linea);${c.activa === 'sí' ? '' : 'opacity:.45'}">
-      <div class="fila"><div><b>${esc(c.nombre)}</b>${esAdmin() && c.mia === false ? ' <span class="ayuda">(de otro maestro)</span>' : ''}<div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>
+      <div class="fila"><div><b>${esc(c.nombre)}</b>${c.alumnos ? ` <button class="ayuda num-al" onclick="formAlumnos('${c.codigo}')">· ${c.alumnos} alumnos ✏️</button>` : ''}${esAdmin() && c.mia === false ? ' <span class="ayuda">(de otro maestro)</span>' : ''}<div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>
       ${c.activa === 'sí' ? `<button class="btn-peq sec" onclick="desactivarClase('${c.codigo}')">Desactivar</button>` : '<span class="ayuda">Desactivado</span>'}</div>
+      ${!c.alumnos && c.activa === 'sí' ? `<div class="aviso-num"><span>Indica cuántos alumnos tiene este grupo para el ranking.</span><button class="btn-peq" onclick="formAlumnos('${c.codigo}')">Indicar</button></div>` : ''}
       ${lista}</div>`;
   }).join('');
+}
+function formAlumnos(codigo){
+  const c = S.clases.find(x => x.codigo === codigo);
+  abrirHoja(`<h2>${esc(c.nombre)}</h2><p class="ayuda">¿Cuántos alumnos tiene este grupo? Sirve para que el ranking sea justo con las clases pequeñas.</p>
+    <label>Número de alumnos</label><input id="fAl" type="number" inputmode="numeric" min="1" max="60" value="${c.alumnos || ''}">
+    <button class="btn" onclick="guardarAlumnos('${codigo}', this)">Guardar</button>`);
+  setTimeout(() => $('#fAl').focus(), 250);
+}
+async function guardarAlumnos(codigo, b){
+  const alumnos = +$('#fAl').value; if (!(alumnos >= 1 && alumnos <= 60)) { aviso('Escribe un número entre 1 y 60', true); return; }
+  b.disabled = true;
+  try { await api('alumnosClase', { token: S.sesion.token, codigo, alumnos }, true); cerrarHoja(); aviso('Guardado ✓'); await cargarClases(); }
+  catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); b.disabled = false; }
 }
 async function cargarClases(){
   if (!esMaestro()) return;
@@ -898,8 +1042,9 @@ async function cargarClases(){
   const el = $('#clases'); if (el) el.innerHTML = pintarClases();
 }
 async function crearClase(){
-  const nombre = $('#nClase').value.trim(); if (!nombre) { aviso('Escribe el nombre de la clase', true); return; }
-  try { const j = await api('crearClase', { token: S.sesion.token, nombre }, true); aviso('Código creado: ' + j.codigo); $('#nClase').value = ''; await cargarClases(); }
+  const nombre = $('#nClase').value.trim(); if (!nombre) { aviso('Escribe el nombre del grupo', true); return; }
+  const alumnos = +$('#nAlumnos').value; if (!(alumnos >= 1 && alumnos <= 60)) { aviso('Indica cuántos alumnos tiene el grupo', true); return; }
+  try { const j = await api('crearClase', { token: S.sesion.token, nombre, alumnos }, true); aviso('Código creado: ' + j.codigo); $('#nClase').value = ''; $('#nAlumnos').value = ''; await cargarClases(); }
   catch(e){ aviso(e.message, true); }
 }
 async function desactivarClase(codigo){
