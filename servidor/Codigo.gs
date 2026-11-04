@@ -1,0 +1,384 @@
+/**
+ * BIBLIOTECA ESCOLAR — Servidor (Google Apps Script)
+ * ---------------------------------------------------
+ * La hoja de cálculo es la base de datos compartida. Todas las reservas pasan
+ * por aquí y se comprueban con un candado (LockService), así que dos maestros
+ * nunca pueden reservar la misma hora aunque pulsen a la vez.
+ *
+ * Instalación:
+ *  1. Crea una hoja de Google nueva → Extensiones → Apps Script.
+ *  2. Pega este archivo, guarda y ejecuta la función `instalar` una vez
+ *     (acepta los permisos). En el registro aparecerá el CÓDIGO DE CENTRO.
+ *  3. Implementar → Nueva implementación → Aplicación web:
+ *       Ejecutar como: Yo · Quién tiene acceso: Cualquier usuario.
+ *     Copia la URL /exec: la usará la web de GitHub Pages.
+ *  4. El primer maestro que se registre queda como ADMINISTRADOR (regístrate tú primero).
+ *
+ * Cómo llama la web (sin cabeceras, para evitar problemas de CORS):
+ *   fetch(URL + '?action=estado&mes=2026-11')
+ *   fetch(URL, { method: 'POST', body: JSON.stringify({ action: 'reservar', token, fecha, tramo, grupo }) })
+ */
+
+const TZ = 'Europe/Madrid';
+
+const TRAMOS = [
+  { n: 1, inicio: '09:30', fin: '10:30' },
+  { n: 2, inicio: '10:30', fin: '11:30' },
+  { n: 3, inicio: '12:00', fin: '13:00' },
+  { n: 4, inicio: '13:00', fin: '14:00' }
+];
+
+const HOJAS = {
+  Config:      ['clave', 'valor'],
+  Maestros:    ['id', 'nombre', 'nombreClave', 'sal', 'hash', 'rol', 'token', 'alta'],
+  Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta'],
+  Reservas:    ['id', 'fecha', 'tramo', 'maestroId', 'maestro', 'grupo', 'creada', 'estado', 'anuladaPor'],
+  Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor'],
+  Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor'],
+  Festivos:    ['fecha', 'motivo']
+};
+
+const ACCIONES_ESCRITURA = [
+  'registrarMaestro', 'entrar', 'reservar', 'anular', 'enviarSugerencia', 'enviarResena',
+  'moderar', 'crearClase', 'desactivarClase'
+];
+
+/* ===================== INSTALACIÓN ===================== */
+
+function instalar() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ss.setSpreadsheetTimeZone(TZ);
+  Object.keys(HOJAS).forEach(nombre => {
+    let h = ss.getSheetByName(nombre);
+    if (!h) h = ss.insertSheet(nombre);
+    const cab = HOJAS[nombre];
+    h.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold');
+    h.setFrozenRows(1);
+    // Todo como texto: evita que Sheets convierta fechas y horas por su cuenta.
+    h.getRange(1, 1, h.getMaxRows(), cab.length).setNumberFormat('@');
+  });
+  const h1 = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
+  if (h1 && ss.getSheets().length > 1) ss.deleteSheet(h1);
+
+  const cfg = leerConfig();
+  if (!cfg.CODIGO_CENTRO) guardarConfig('CODIGO_CENTRO', generarCodigo());
+  if (!cfg.DIAS_ANTELACION) guardarConfig('DIAS_ANTELACION', '60');
+  Logger.log('CÓDIGO DE CENTRO (para que los maestros se registren): ' + leerConfig().CODIGO_CENTRO);
+}
+
+/* ===================== ENTRADA ===================== */
+
+function doGet(e) { return responder(() => manejar((e.parameter || {}).action, e.parameter || {})); }
+
+function doPost(e) {
+  return responder(() => {
+    const p = JSON.parse((e.postData && e.postData.contents) || '{}');
+    return manejar(p.action, p);
+  });
+}
+
+function responder(fn) {
+  let salida;
+  try { salida = Object.assign({ ok: true }, fn()); }
+  catch (err) { salida = { ok: false, error: String(err.message || err) }; }
+  return ContentService.createTextOutput(JSON.stringify(salida)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function manejar(accion, p) {
+  const acciones = {
+    estado, publicas, registrarMaestro, entrar, reservar, anular,
+    enviarSugerencia, enviarResena, pendientes, moderar, crearClase, listarClases, desactivarClase
+  };
+  if (!acciones[accion]) throw new Error('Acción desconocida.');
+  if (ACCIONES_ESCRITURA.indexOf(accion) === -1) return acciones[accion](p);
+
+  const candado = LockService.getScriptLock();
+  if (!candado.tryLock(15000)) throw new Error('El servidor está ocupado. Inténtalo de nuevo en unos segundos.');
+  try { return acciones[accion](p); }
+  finally { SpreadsheetApp.flush(); candado.releaseLock(); }
+}
+
+/* ===================== CONSULTAS PÚBLICAS ===================== */
+
+/** Reservas de un mes + situación de hoy. ?mes=AAAA-MM (por defecto, el actual). */
+function estado(p) {
+  const ahora = ahoraLocal();
+  const mes = /^\d{4}-\d{2}$/.test(p.mes || '') ? p.mes : ahora.fecha.slice(0, 7);
+  const activas = filas('Reservas').filter(r => r.estado === 'activa');
+  const limpiar = r => ({ id: r.id, fecha: r.fecha, tramo: Number(r.tramo), maestro: r.maestro, maestroId: r.maestroId, grupo: r.grupo });
+  return {
+    ahora: { fecha: ahora.fecha, hora: ahora.hora, tramoActual: tramoEn(ahora.hora) },
+    tramos: TRAMOS,
+    mes,
+    reservas: activas.filter(r => r.fecha.slice(0, 7) === mes).map(limpiar),
+    hoy: activas.filter(r => r.fecha === ahora.fecha).map(limpiar),
+    festivos: filas('Festivos').map(f => ({ fecha: f.fecha, motivo: f.motivo })),
+    diasAntelacion: Number(leerConfig().DIAS_ANTELACION || 60)
+  };
+}
+
+/** Sugerencias y reseñas ya aprobadas (lo que ve todo el mundo). */
+function publicas() {
+  const aprobadas = (hoja) => filas(hoja).filter(x => x.estado === 'aprobada').reverse().slice(0, 150);
+  return {
+    sugerencias: aprobadas('Sugerencias').map(s => ({ id: s.id, creada: s.creada, tipoAutor: s.tipoAutor, alias: s.alias, clase: s.clase, titulo: s.titulo, texto: s.texto })),
+    resenas: aprobadas('Resenas').map(r => ({ id: r.id, creada: r.creada, tipoAutor: r.tipoAutor, alias: r.alias, clase: r.clase, libro: r.libro, autorLibro: r.autorLibro, valoracion: Number(r.valoracion), texto: r.texto }))
+  };
+}
+
+/* ===================== MAESTROS ===================== */
+
+/** { codigoCentro, nombre, pin } → token. El primero en registrarse es administrador. */
+function registrarMaestro(p) {
+  if (String(p.codigoCentro || '').trim().toUpperCase() !== String(leerConfig().CODIGO_CENTRO).toUpperCase())
+    throw new Error('El código de centro no es correcto.');
+  const nombre = texto(p.nombre, 40, 'nombre');
+  const pin = String(p.pin || '');
+  if (pin.length < 4) throw new Error('La clave debe tener al menos 4 caracteres.');
+  const clave = normalizar(nombre);
+  const maestros = filas('Maestros');
+  if (maestros.some(m => m.nombreClave === clave)) throw new Error('Ya hay un maestro registrado con ese nombre. Usa «Entrar».');
+
+  const sal = Utilities.getUuid();
+  const m = {
+    id: 'M' + Date.now().toString(36), nombre, nombreClave: clave, sal, hash: resumen(sal, pin),
+    rol: maestros.length === 0 ? 'admin' : 'maestro', token: Utilities.getUuid(), alta: ahoraLocal().completo
+  };
+  anadir('Maestros', m);
+  return sesion(m);
+}
+
+/** { nombre, pin } → token. Bloquea 15 min tras 5 fallos. */
+function entrar(p) {
+  const clave = normalizar(texto(p.nombre, 40, 'nombre'));
+  const cache = CacheService.getScriptCache();
+  const fallos = Number(cache.get('fallos_' + clave) || 0);
+  if (fallos >= 5) throw new Error('Demasiados intentos. Espera 15 minutos.');
+  const m = filas('Maestros').find(x => x.nombreClave === clave);
+  if (!m || m.hash !== resumen(m.sal, String(p.pin || ''))) {
+    cache.put('fallos_' + clave, String(fallos + 1), 900);
+    throw new Error('Nombre o clave incorrectos.');
+  }
+  cache.remove('fallos_' + clave);
+  return sesion(m);
+}
+
+function sesion(m) { return { token: m.token, maestro: { id: m.id, nombre: m.nombre, rol: m.rol } }; }
+
+function maestroPorToken(token) {
+  const m = token ? filas('Maestros').find(x => x.token === token) : null;
+  if (!m) throw new Error('Sesión no válida. Vuelve a entrar.');
+  return m;
+}
+
+/* ===================== RESERVAS ===================== */
+
+/** { token, fecha:'AAAA-MM-DD', tramo:1-4, grupo } */
+function reservar(p) {
+  const m = maestroPorToken(p.token);
+  const fecha = validarFecha(p.fecha);
+  const tramo = TRAMOS.find(t => t.n === Number(p.tramo));
+  if (!tramo) throw new Error('Tramo horario no válido.');
+  const grupo = texto(p.grupo, 40, 'grupo o motivo');
+
+  const ahora = ahoraLocal();
+  if (fecha + ' ' + tramo.fin <= ahora.completo) throw new Error('Esa hora ya ha pasado.');
+  const dias = Number(leerConfig().DIAS_ANTELACION || 60);
+  if (fecha > sumarDias(ahora.fecha, dias)) throw new Error('Solo se puede reservar con ' + dias + ' días de antelación como máximo.');
+
+  // Comprobación dentro del candado: aquí es donde se impiden los solapamientos.
+  const ocupada = filas('Reservas').find(r => r.estado === 'activa' && r.fecha === fecha && Number(r.tramo) === tramo.n);
+  if (ocupada) throw new Error('Esa hora acaba de reservarla ' + ocupada.maestro + '.');
+
+  const r = {
+    id: 'R' + Date.now().toString(36), fecha, tramo: String(tramo.n), maestroId: m.id, maestro: m.nombre,
+    grupo, creada: ahora.completo, estado: 'activa', anuladaPor: ''
+  };
+  anadir('Reservas', r);
+  return { reserva: { id: r.id, fecha, tramo: tramo.n, maestro: m.nombre, maestroId: m.id, grupo } };
+}
+
+/** { token, id } — solo quien reservó o el administrador. */
+function anular(p) {
+  const m = maestroPorToken(p.token);
+  const r = filas('Reservas').find(x => x.id === p.id && x.estado === 'activa');
+  if (!r) throw new Error('La reserva no existe o ya estaba anulada.');
+  if (r.maestroId !== m.id && m.rol !== 'admin') throw new Error('Solo puedes anular tus propias reservas.');
+  const tramo = TRAMOS.find(t => t.n === Number(r.tramo));
+  if (r.fecha + ' ' + tramo.fin <= ahoraLocal().completo) throw new Error('No se puede anular una reserva pasada.');
+  escribir('Reservas', r._fila, { estado: 'anulada', anuladaPor: m.nombre });
+  return { anulada: r.id };
+}
+
+/* ===================== SUGERENCIAS Y RESEÑAS ===================== */
+
+/** Alumnado: { codigoClase, alias, ... } · Maestros: { token, ... } */
+function enviarSugerencia(p) {
+  const a = autor(p);
+  const s = {
+    id: 'S' + Date.now().toString(36), creada: ahoraLocal().completo, tipoAutor: a.tipo, alias: a.alias, clase: a.clase,
+    titulo: texto(p.titulo, 80, 'título'), texto: texto(p.texto, 1000, 'texto'),
+    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: ''
+  };
+  anadir('Sugerencias', s);
+  return { estado: s.estado };
+}
+
+function enviarResena(p) {
+  const a = autor(p);
+  const val = Number(p.valoracion);
+  if (!(val >= 1 && val <= 5)) throw new Error('La valoración debe estar entre 1 y 5 estrellas.');
+  const r = {
+    id: 'L' + Date.now().toString(36), creada: ahoraLocal().completo, tipoAutor: a.tipo, alias: a.alias, clase: a.clase,
+    libro: texto(p.libro, 100, 'título del libro'), autorLibro: texto(p.autorLibro || '-', 80, 'autor'),
+    valoracion: String(Math.round(val)), texto: texto(p.texto, 1000, 'reseña'),
+    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: ''
+  };
+  anadir('Resenas', r);
+  return { estado: r.estado };
+}
+
+function autor(p) {
+  if (p.token) { const m = maestroPorToken(p.token); return { tipo: 'maestro', alias: m.nombre, clase: '' }; }
+  const codigo = String(p.codigoClase || '').trim().toUpperCase();
+  const clase = filas('Clases').find(c => c.codigo === codigo && c.activa === 'sí');
+  if (!clase) throw new Error('El código de clase no es correcto.');
+  // Freno anti-avalancha: máximo 20 envíos por clase cada 10 minutos.
+  const cache = CacheService.getScriptCache();
+  const n = Number(cache.get('envios_' + codigo) || 0);
+  if (n >= 20) throw new Error('Tu clase ha enviado muchos mensajes seguidos. Espera un poco.');
+  cache.put('envios_' + codigo, String(n + 1), 600);
+  return { tipo: 'alumno', alias: texto(p.alias, 20, 'nombre'), clase: clase.nombre };
+}
+
+/** { token } → lo que espera revisión. */
+function pendientes(p) {
+  maestroPorToken(p.token);
+  const pend = (h) => filas(h).filter(x => x.estado === 'pendiente').map(x => { const o = Object.assign({}, x); delete o._fila; return o; });
+  return { sugerencias: pend('Sugerencias'), resenas: pend('Resenas') };
+}
+
+/** { token, tipo:'sugerencia'|'resena', id, decision:'aprobada'|'rechazada' } */
+function moderar(p) {
+  const m = maestroPorToken(p.token);
+  const hoja = p.tipo === 'resena' ? 'Resenas' : 'Sugerencias';
+  if (['aprobada', 'rechazada'].indexOf(p.decision) === -1) throw new Error('Decisión no válida.');
+  const x = filas(hoja).find(f => f.id === p.id);
+  if (!x) throw new Error('No encontrado.');
+  escribir(hoja, x._fila, { estado: p.decision, moderadaPor: m.nombre });
+  return { id: x.id, estado: p.decision };
+}
+
+/* ===================== CÓDIGOS DE CLASE ===================== */
+
+/** { token, nombre:'3.º A' } → código que el maestro da a su alumnado. */
+function crearClase(p) {
+  const m = maestroPorToken(p.token);
+  const existentes = filas('Clases').map(c => c.codigo);
+  let codigo;
+  do { codigo = generarCodigo(); } while (existentes.indexOf(codigo) !== -1);
+  anadir('Clases', { codigo, nombre: texto(p.nombre, 30, 'nombre de la clase'), maestroId: m.id, activa: 'sí', alta: ahoraLocal().completo });
+  return { codigo };
+}
+
+function listarClases(p) {
+  const m = maestroPorToken(p.token);
+  return { clases: filas('Clases').filter(c => m.rol === 'admin' || c.maestroId === m.id).map(c => ({ codigo: c.codigo, nombre: c.nombre, activa: c.activa })) };
+}
+
+/** Si un código se filtra, se desactiva y se crea otro. */
+function desactivarClase(p) {
+  const m = maestroPorToken(p.token);
+  const c = filas('Clases').find(x => x.codigo === p.codigo);
+  if (!c || (c.maestroId !== m.id && m.rol !== 'admin')) throw new Error('No puedes modificar esa clase.');
+  escribir('Clases', c._fila, { activa: 'no' });
+  return { codigo: c.codigo };
+}
+
+/* ===================== UTILIDADES ===================== */
+
+function hoja(nombre) { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombre); }
+
+function filas(nombre) {
+  const h = hoja(nombre), cab = HOJAS[nombre];
+  const n = h.getLastRow() - 1;
+  if (n < 1) return [];
+  return h.getRange(2, 1, n, cab.length).getDisplayValues().map((v, i) => {
+    const o = { _fila: i + 2 };
+    cab.forEach((c, j) => o[c] = v[j]);
+    return o;
+  });
+}
+
+function anadir(nombre, obj) {
+  const cab = HOJAS[nombre];
+  const h = hoja(nombre);
+  const fila = h.getLastRow() + 1;
+  h.getRange(fila, 1, 1, cab.length).setNumberFormat('@').setValues([cab.map(c => obj[c] == null ? '' : String(obj[c]))]);
+}
+
+function escribir(nombre, fila, cambios) {
+  const cab = HOJAS[nombre], h = hoja(nombre);
+  Object.keys(cambios).forEach(c => h.getRange(fila, cab.indexOf(c) + 1).setValue(cambios[c]));
+}
+
+function leerConfig() {
+  const o = {};
+  filas('Config').forEach(f => o[f.clave] = f.valor);
+  return o;
+}
+
+function guardarConfig(clave, valor) {
+  const f = filas('Config').find(x => x.clave === clave);
+  if (f) escribir('Config', f._fila, { valor }); else anadir('Config', { clave, valor });
+}
+
+function ahoraLocal() {
+  const d = new Date();
+  const fecha = Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+  const hora = Utilities.formatDate(d, TZ, 'HH:mm');
+  return { fecha, hora, completo: fecha + ' ' + hora };
+}
+
+function tramoEn(hora) {
+  const t = TRAMOS.find(x => hora >= x.inicio && hora < x.fin);
+  return t ? t.n : null;
+}
+
+function validarFecha(f) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f || '')) throw new Error('Fecha no válida.');
+  const d = new Date(f + 'T12:00:00Z');
+  if (isNaN(d) || d.toISOString().slice(0, 10) !== f) throw new Error('Fecha no válida.');
+  const dia = d.getUTCDay();
+  if (dia === 0 || dia === 6) throw new Error('La biblioteca solo se reserva de lunes a viernes.');
+  const festivo = filas('Festivos').find(x => x.fecha === f);
+  if (festivo) throw new Error('Ese día no hay clase (' + (festivo.motivo || 'festivo') + ').');
+  return f;
+}
+
+function sumarDias(fecha, n) {
+  const d = new Date(fecha + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function texto(v, max, campo) {
+  const s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+  if (!s) throw new Error('Falta el campo «' + campo + '».');
+  if (s.length > max) throw new Error('El campo «' + campo + '» es demasiado largo (máx. ' + max + ').');
+  // Evita que Sheets interprete el texto como fórmula.
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+function normalizar(s) {
+  return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function resumen(sal, pin) {
+  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sal + '|' + pin, Utilities.Charset.UTF_8));
+}
+
+function generarCodigo() {
+  const palabras = ['LUNA', 'SOL', 'RIO', 'OLIVO', 'LINCE', 'BUHO', 'NUBE', 'ROBLE', 'FARO', 'COMETA', 'ATLAS', 'PLUMA', 'TINTA', 'CUENTO', 'MAPA', 'ARCO'];
+  return palabras[Math.floor(Math.random() * palabras.length)] + '-' + (10 + Math.floor(Math.random() * 90));
+}
