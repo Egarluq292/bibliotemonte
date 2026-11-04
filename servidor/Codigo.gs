@@ -21,6 +21,9 @@
 
 const TZ = 'Europe/Madrid';
 
+// Festivos y efemérides que se mantienen en GitHub (además de la pestaña Festivos de la hoja).
+const URL_CALENDARIO = 'https://egarluq292.github.io/bibliotemonte/calendario.json';
+
 const TRAMOS = [
   { n: 1, inicio: '09:30', fin: '10:30' },
   { n: 2, inicio: '10:30', fin: '11:30' },
@@ -43,6 +46,41 @@ const ACCIONES_ESCRITURA = [
   'moderar', 'crearClase', 'desactivarClase',
   'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro'
 ];
+
+/* ===================== CALENDARIO ESCOLAR ===================== */
+
+/** Festivos de la hoja + los de calendario.json (días sueltos o periodos «desde/hasta»). */
+function todosFestivos() {
+  const hojaF = filas('Festivos').map(f => ({ fecha: f.fecha, motivo: f.motivo }));
+  return hojaF.concat(festivosCalendario());
+}
+
+function festivosCalendario() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get('calendario');
+  if (guardado) return JSON.parse(guardado);
+  let lista = [];
+  try {
+    const r = UrlFetchApp.fetch(URL_CALENDARIO + '?t=' + Date.now(), { muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) {
+      const datos = JSON.parse(r.getContentText());
+      (datos.festivos || []).forEach(f => {
+        if (f.fecha) lista.push({ fecha: f.fecha, motivo: f.motivo || 'Festivo' });
+        else if (f.desde && f.hasta) {
+          for (let d = f.desde; d <= f.hasta; d = sumarDias(d, 1)) lista.push({ fecha: d, motivo: f.motivo || 'Vacaciones' });
+        }
+      });
+    }
+  } catch (e) { /* Si GitHub no responde, se usan solo los festivos de la hoja. */ }
+  cache.put('calendario', JSON.stringify(lista), 1800);
+  return lista;
+}
+
+/** Ejecútala una vez a mano tras actualizar el servidor: pide el permiso para leer GitHub. */
+function probarCalendario() {
+  CacheService.getScriptCache().remove('calendario');
+  Logger.log('Festivos leídos de GitHub: ' + festivosCalendario().length);
+}
 
 /* ===================== INSTALACIÓN ===================== */
 
@@ -114,7 +152,7 @@ function estado(p) {
     mes,
     reservas: activas.filter(r => r.fecha.slice(0, 7) === mes).map(limpiar),
     hoy: activas.filter(r => r.fecha === ahora.fecha).map(limpiar),
-    festivos: filas('Festivos').map(f => ({ fecha: f.fecha, motivo: f.motivo })),
+    festivos: todosFestivos(),
     diasAntelacion: Number(leerConfig().DIAS_ANTELACION || 60)
   };
 }
@@ -429,7 +467,7 @@ function validarFecha(f) {
   if (isNaN(d) || d.toISOString().slice(0, 10) !== f) throw new Error('Fecha no válida.');
   const dia = d.getUTCDay();
   if (dia === 0 || dia === 6) throw new Error('La biblioteca solo se reserva de lunes a viernes.');
-  const festivo = filas('Festivos').find(x => x.fecha === f);
+  const festivo = todosFestivos().find(x => x.fecha === f);
   if (festivo) throw new Error('Ese día no hay clase (' + (festivo.motivo || 'festivo') + ').');
   return f;
 }

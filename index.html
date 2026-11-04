@@ -172,6 +172,14 @@ textarea{min-height:120px;resize:vertical}
 .guia-texto li{margin-top:5px}
 .guia-texto b{color:var(--tinta)}
 .captura{display:block;width:100%;max-width:340px;margin:16px auto 2px;border-radius:18px;border:1px solid var(--linea);box-shadow:0 6px 18px rgba(43,35,80,.12)}
+.proximos{margin-top:16px;padding-top:12px;border-top:1px solid rgba(243,210,122,.35);display:grid;gap:6px}
+.prox{display:flex;gap:10px;font-size:14px;color:#F1EEF9;align-items:flex-start}
+.prox b{color:#F3D27A}
+.dia .num{display:flex;justify-content:space-between;align-items:flex-start}
+.efe{color:var(--oro);font-size:13px;line-height:1}
+.efe-banda{background:#FBF3DC;border:1px solid #F0DDA4;border-radius:14px;padding:10px 14px;margin:8px 0 4px}
+.efe-banda b{display:block;color:var(--tinta)}
+.efe-banda span{display:block;font-size:14px;color:var(--tinta2);margin-top:2px}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -206,6 +214,7 @@ const S = {
   publicas: null,
   pendientes: null,
   buzonTab: 'sugerencias',
+  cal: { festivos: [], efemerides: [] },   // calendario.json (festivos y efemérides)
   sesion: leer('bib_sesion'),   // maestro: {token, maestro:{id,nombre,rol}}
   alumno: leer('bib_alumno')    // alumno: {codigoClase, alias}
 };
@@ -259,15 +268,50 @@ async function cargarEstado(mes){
   if (!S.mesVista) S.mesVista = j.mes;
   return j;
 }
+async function cargarCalendario(){
+  try { const r = await fetch('calendario.json', { cache: 'no-store' }); if (r.ok) S.cal = await r.json(); } catch(e){}
+}
 async function cargarPublicas(){ S.publicas = await api('publicas'); }
 async function cargarPendientes(){ if (esMaestro()) S.pendientes = await api('pendientes', { token: S.sesion.token }, true).catch(() => null); }
 
 async function refrescar(){
   try {
-    await Promise.all([cargarEstado(), cargarPublicas(), cargarPendientes()]);
+    await Promise.all([cargarEstado(), cargarPublicas(), cargarPendientes(), cargarCalendario()]);
     if (S.mesVista && S.mesVista !== S.estado.mes) await cargarEstado(S.mesVista);
     pintar();
   } catch(e){ aviso('Sin conexión con el servidor', true); }
+}
+
+/* ============ FESTIVOS Y EFEMÉRIDES ============ */
+function listaFestivos(){
+  const out = {};
+  (S.estado ? S.estado.festivos : []).forEach(f => out[f.fecha] = f.motivo);
+  (S.cal.festivos || []).forEach(f => {
+    if (f.fecha) out[f.fecha] = out[f.fecha] || f.motivo || 'Festivo';
+    else if (f.desde && f.hasta) for (let d = f.desde; d <= f.hasta; d = sumarDias(d, 1)) out[d] = out[d] || f.motivo || 'Vacaciones';
+  });
+  return out;
+}
+const festivoDe = f => { const m = listaFestivos()[f]; return m ? { fecha: f, motivo: m } : null; };
+const efemeridesDe = f => (S.cal.efemerides || []).filter(e => e.fecha === f);
+
+function diasEntre(a, b){ return Math.round((dUTC(b) - dUTC(a)) / 86400000); }
+function cuandoEs(f){
+  const n = diasEntre(S.estado.ahora.fecha, f);
+  if (n === 0) return 'Hoy';
+  if (n === 1) return 'Mañana';
+  const d = dUTC(f); return `El ${DIAS[d.getUTCDay()]} ${d.getUTCDate()}`;
+}
+/** Lo que llega en los próximos 3 días: efemérides y comienzo de festivos o vacaciones. */
+function proximos(){
+  const hoy = S.estado.ahora.fecha, lim = sumarDias(hoy, 3), out = [];
+  (S.cal.efemerides || []).forEach(e => { if (e.fecha >= hoy && e.fecha <= lim) out.push({ fecha: e.fecha, icono: e.icono || '✨', texto: e.titulo }); });
+  (S.cal.festivos || []).forEach(f => {
+    const ini = f.fecha || f.desde;
+    if (!ini) return;
+    if (ini >= hoy && ini <= lim) out.push({ fecha: ini, icono: '🎈', texto: f.desde ? `${f.motivo || 'Vacaciones'} (hasta el ${dUTC(f.hasta).getUTCDate()} de ${MESES[dUTC(f.hasta).getUTCMonth()]})` : `No hay clase · ${f.motivo || 'Festivo'}` });
+  });
+  return out.sort((a, b) => a.fecha < b.fecha ? -1 : 1).slice(0, 3);
 }
 
 /* ============ NAVEGACIÓN ============ */
@@ -292,9 +336,9 @@ function cabecera(t){
 
 /* ============ INICIO ============ */
 function situacionAhora(){
-  const { ahora, tramos, hoy, festivos } = S.estado;
+  const { ahora, tramos, hoy } = S.estado;
   const ds = diaSem(ahora.fecha);
-  const fest = festivos.find(f => f.fecha === ahora.fecha);
+  const fest = festivoDe(ahora.fecha);
   if (ds === 0 || ds === 6) return { estado: 'Cerrada', det: 'Hoy no hay clase.', clase: 'neutra', lectivo: false };
   if (fest) return { estado: 'Cerrada', det: fest.motivo || 'Día no lectivo.', clase: 'neutra', lectivo: false };
   if (ahora.tramoActual) {
@@ -333,6 +377,7 @@ function vInicio(){
     <div class="estado">${sit.estado}</div>
     <div class="det">${esc(sit.det)}</div>
     ${pills ? `<div class="tramos-hoy">${pills}</div>` : ''}
+    ${proximos().length ? `<div class="proximos">${proximos().map(e => `<div class="prox"><span>${e.icono}</span><span><b>${cuandoEs(e.fecha)}</b> · ${esc(e.texto)}</span></div>`).join('')}</div>` : ''}
     <div class="fila" style="margin-top:16px"><span class="pill neutra">Ver calendario completo</span><span class="ir" style="color:#C9C2E0">›</span></div>
   </button>
 
@@ -387,15 +432,16 @@ function vCalendario(){
     const ds = diaSem(f);
     if (ds === 0 || ds === 6) continue;
     if (primero) { for (let i = 1; i < ds; i++) celdas += '<div class="dia vacio"></div>'; primero = false; }
-    const fest = S.estado.festivos.find(x => x.fecha === f);
+    const fest = festivoDe(f);
+    const efe = efemeridesDe(f);
     const delDia = reservas.filter(r => r.fecha === f);
     const barras = [1,2,3,4].map(n => `<i class="${delDia.some(r => r.tramo === n) ? 'o' : ''}"></i>`).join('');
     const cls = ['dia', f === S.estado.ahora.fecha ? 'hoy' : '', f < S.estado.ahora.fecha ? 'pasado' : '', fest ? 'fest' : ''].join(' ');
-    celdas += `<button class="${cls}" onclick="abrirDia('${f}')"><span class="num">${d}</span>
+    celdas += `<button class="${cls}" onclick="abrirDia('${f}')"><span class="num">${d}${efe.length ? '<span class="efe">★</span>' : ''}</span>
       ${fest ? `<span class="fl">${esc((fest.motivo || 'Festivo').slice(0,14))}</span>` : `<span class="barras">${barras}</span>`}</button>`;
   }
   return cabecera('Reservas') + navMes(y, m) + `<div class="cal">${celdas}</div>
-    <div class="leyenda"><span><i style="background:#C9E7D2"></i>Libre</span><span><i style="background:var(--teja)"></i>Reservada</span></div>
+    <div class="leyenda"><span><i style="background:#C9E7D2"></i>Libre</span><span><i style="background:var(--teja)"></i>Reservada</span><span><b style="color:var(--oro)">★</b> Efeméride</span></div>
     <p class="ayuda" style="text-align:center;margin-top:14px">Cada barra es una sesión: 9:30 · 10:30 · 12:00 · 13:00</p>
     ${!esMaestro() ? '<p class="ayuda" style="text-align:center">Solo el profesorado puede reservar.</p>' : ''}`;
 }
@@ -412,7 +458,8 @@ function cambiarMes(delta){
 
 function abrirDia(f){
   const reservas = (S.meses[f.slice(0,7)] || []).filter(r => r.fecha === f);
-  const fest = S.estado.festivos.find(x => x.fecha === f);
+  const fest = festivoDe(f);
+  const efes = efemeridesDe(f);
   const ahora = ahoraCompleto();
   const limite = sumarDias(S.estado.ahora.fecha, S.estado.diasAntelacion);
   let cuerpo;
@@ -438,7 +485,8 @@ function abrirDia(f){
       <span id="rb${t.n}">${accion}</span></div>`;
   }).join('');
   abrirHoja(`<h2>${mayus(fechaLarga(f))}</h2>
-    <p class="ayuda" style="margin-bottom:6px">${esMaestro() ? 'Pulsa «Reservar» en una sesión libre.' : 'Consulta de reservas.'}</p>${cuerpo}`);
+    ${efes.map(e => `<div class="efe-banda"><b>${e.icono || '✨'} ${esc(e.titulo)}</b>${e.detalle ? `<span>${esc(e.detalle)}</span>` : ''}</div>`).join('')}
+    <p class="ayuda" style="margin-bottom:6px">${fest ? '' : esMaestro() ? 'Pulsa «Reservar» en una sesión libre.' : 'Consulta de reservas.'}</p>${cuerpo}`);
 }
 
 function mostrarReserva(n){
