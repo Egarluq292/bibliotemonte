@@ -44,7 +44,7 @@ const HOJAS = {
 const ACCIONES_ESCRITURA = [
   'registrarMaestro', 'entrar', 'reservar', 'anular', 'enviarSugerencia', 'enviarResena',
   'moderar', 'crearClase', 'desactivarClase',
-  'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro', 'alumnosClase'
+  'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro', 'alumnosClase', 'eliminarClase', 'retirar'
 ];
 
 /* ===================== CALENDARIO ESCOLAR ===================== */
@@ -127,7 +127,7 @@ function manejar(accion, p) {
   const acciones = {
     estado, publicas, registrarMaestro, entrar, reservar, anular,
     enviarSugerencia, enviarResena, pendientes, moderar, crearClase, listarClases, desactivarClase,
-    cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro, alumnosClase
+    cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro, alumnosClase, eliminarClase, retirar
   };
   if (!acciones[accion]) throw new Error('Acción desconocida.');
   if (ACCIONES_ESCRITURA.indexOf(accion) === -1) return acciones[accion](p);
@@ -438,6 +438,33 @@ function listarClases(p) {
       return { codigo: c.codigo, nombre: c.nombre, activa: c.activa, mia: c.maestroId === m.id, alumnos: Number(c.alumnos) || 0, participantes };
     })
   };
+}
+
+/** { token, codigo } — borra una clase desactivada y todo lo que se escribió con su código. */
+function eliminarClase(p) {
+  const m = maestroPorToken(p.token);
+  const c = filas('Clases').find(x => x.codigo === p.codigo);
+  if (!c || (c.maestroId !== m.id && m.rol !== 'admin')) throw new Error('No puedes eliminar esa clase.');
+  if (c.activa === 'sí') throw new Error('Desactiva primero el código.');
+  let borrados = 0;
+  ['Sugerencias', 'Resenas'].forEach(h => {
+    filas(h).filter(x => x.codigoClase === c.codigo).map(x => x._fila).sort((a, b) => b - a)
+      .forEach(f => { hoja(h).deleteRow(f); borrados++; });
+  });
+  hoja('Clases').deleteRow(c._fila);
+  return { codigo: c.codigo, borrados };
+}
+
+/** { token, tipo, id } — retira algo ya publicado (lo devuelve a «rechazada»). */
+function retirar(p) {
+  const m = maestroPorToken(p.token);
+  const h = p.tipo === 'resena' ? 'Resenas' : 'Sugerencias';
+  const x = filas(h).find(f => f.id === p.id);
+  if (!x) throw new Error('No encontrado.');
+  const suyo = x.maestroClase === m.id || (x.tipoAutor === 'maestro' && x.alias === m.nombre);
+  if (m.rol !== 'admin' && !suyo) throw new Error('Solo puedes retirar lo de tus clases.');
+  escribir(h, x._fila, { estado: 'rechazada', moderadaPor: m.nombre + ' (retirado)' });
+  return { id: x.id };
 }
 
 /** Si un código se filtra, se desactiva y se crea otro. */

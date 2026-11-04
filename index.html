@@ -138,6 +138,8 @@ textarea{min-height:120px;resize:vertical}
 .crear-clase{display:grid;grid-template-columns:1fr 104px auto;gap:8px;margin-top:12px}
 .crear-clase input{padding:10px;font-size:15px;min-width:0}
 .aviso-num{margin-top:8px;background:#FBF3DC;border:1px solid #F0DDA4;border-radius:12px;padding:8px 12px;font-size:13px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+.clase-off b,.clase-off .codigo,.clase-off .part,.clase-off .num-al{opacity:.45}
+.clase-off .codigo{text-decoration:line-through}
 .num-al{font-size:13px;font-weight:500}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .chip{padding:6px 12px;border-radius:999px;background:var(--papel2);color:var(--tinta);font-size:13px;font-weight:600;border:1.5px solid transparent}
@@ -243,7 +245,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.18';
+const VERSION_APP = '1.19';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -775,7 +777,7 @@ function vBuzon(){
     <button class="${tab === 'resenas' ? 'on' : ''}" onclick="S.buzonTab='resenas';pintar()">📖 Reseñas</button></div>`;
   if (!lista.length) html += `<div class="vacio-msg">${tab === 'sugerencias' ? 'Todavía no hay sugerencias.<br>¡Sé el primero en proponer algo!' : 'Todavía no hay reseñas.<br>¿Qué libro te ha gustado?'}</div>`;
   else html += lista.map((x, i) => `<button class="card item" onclick="verMensaje('${tab}',${i})">
-      ${tab === 'resenas' ? `<div class="estrellas">${estrellas(x.valoracion)}</div><h3>${esc(x.libro)}</h3><p style="margin-bottom:6px;font-style:italic">${esc(x.autorLibro)}</p>` : `<h3>${esc(x.titulo)}</h3>`}
+      ${tab === 'resenas' ? `<div class="estrellas">${estrellas(x.valoracion)}</div><h3>${esc(x.libro)}</h3>${x.autorLibro && x.autorLibro !== '-' ? `<p style="margin-bottom:6px;font-style:italic">${esc(x.autorLibro)}</p>` : ''}` : `<h3>${esc(x.titulo)}</h3>`}
       <p>${esc(x.texto)}</p>
       <div class="meta">${esc(x.alias)}${x.clase ? ' · ' + esc(x.clase) : ''}${x.tipoAutor === 'maestro' ? ' · profesorado' : ''} · ${fechaCorta(x.creada)}</div>
     </button>`).join('');
@@ -784,12 +786,15 @@ function vBuzon(){
 
 function verMensaje(tab, i){
   const x = pub()[tab][i];
+  const tipo = tab === 'resenas' ? 'resena' : 'sugerencia';
+  const retirarBtn = esMaestro() && !x.demo ? `<button class="btn peligro" onclick="retirarPublicacion('${tipo}','${x.id}')">Retirar publicación</button>
+    <p class="ayuda" style="text-align:center;margin-top:6px">Deja de verse y de contar en el libro del mes y el ranking.</p>` : '';
   abrirHoja(tab === 'resenas'
     ? `<div class="estrellas" style="font-size:22px">${estrellas(x.valoracion)}</div><h2>${esc(x.libro)}</h2>
-       <p style="font-style:italic;color:var(--tinta2)">${esc(x.autorLibro)}</p><div class="linea"></div>
-       <p style="white-space:pre-wrap">${esc(x.texto)}</p><div class="meta">${esc(x.alias)}${x.clase ? ' · ' + esc(x.clase) : ''} · ${fechaCorta(x.creada)}</div>`
+       ${x.autorLibro && x.autorLibro !== '-' ? `<p style="font-style:italic;color:var(--tinta2)">${esc(x.autorLibro)}</p>` : ''}<div class="linea"></div>
+       <p style="white-space:pre-wrap">${esc(x.texto)}</p><div class="meta">${esc(x.alias)}${x.clase ? ' · ' + esc(x.clase) : ''} · ${fechaCorta(x.creada)}</div>${retirarBtn}`
     : `<h2>${esc(x.titulo)}</h2><div class="meta" style="margin-top:2px">${esc(x.alias)}${x.clase ? ' · ' + esc(x.clase) : ''} · ${fechaCorta(x.creada)}</div>
-       <div class="linea"></div><p style="white-space:pre-wrap">${esc(x.texto)}</p>`);
+       <div class="linea"></div><p style="white-space:pre-wrap">${esc(x.texto)}</p>${retirarBtn}`);
 }
 
 function nuevoMensaje(){
@@ -993,9 +998,10 @@ function vGuia(){
     ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>tocarlo dos veces</b>: la app te lo indica.</p>
       <p>Solo puedes anular <b>tus</b> reservas. Si necesitas una hora reservada por otra persona, habla con ella.</p>`, 'anular')}
     ${paso(6, 'Crear los códigos de tus clases', `<p>En <b>Perfil → Códigos de clase</b>, escribe el <b>nombre del grupo</b> (p. ej. «4.º A»), <b>cuántos alumnos tiene</b> y pulsa <b>Crear</b>. Crea uno por cada grupo que atiendas.</p>
-      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre e inicial, <b>sin apellidos</b> (p. ej. «Lucía M.»).</li><li>Debajo de cada código verás <b>qué alumnos han participado</b> y cuántos mensajes ha enviado cada uno. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>El número de alumnos se puede corregir tocando <b>«✏️»</b>. Es importante que sea correcto: el ranking lo usa para comparar clases.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
+      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre e inicial, <b>sin apellidos</b> (p. ej. «Lucía M.»).</li><li>Debajo de cada código verás <b>qué alumnos han participado</b> y cuántos mensajes ha enviado cada uno. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>El número de alumnos se puede corregir tocando <b>«✏️»</b>. Es importante que sea correcto: el ranking lo usa para comparar clases.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li><li>Un código desactivado se puede <b>Eliminar</b>: se borra junto con todo lo que se escribió con él (útil para clases de prueba).</li></ul>`, 'clases')}
     ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
-      <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>`, 'revisar')}
+      <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>
+      <p>Si algo ya publicado no debería estar, ábrelo en el <b>Buzón</b> y pulsa <b>Retirar publicación</b>.</p>`, 'revisar')}
     ${paso(8, 'Lo que ve tu alumnado', `<p>El alumnado tiene una app más sencilla, <b>sin la pestaña de reservas</b>. En su Inicio ve:</p>
       <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes.</li></ul>
       <p>Solo cuenta lo que tú publicas: <b>descartar</b> un mensaje también lo deja fuera del ranking.</p>
@@ -1074,9 +1080,9 @@ function pintarClases(){
       ? `<div class="part"><div class="ayuda">${part.length === 1 ? 'Ha participado 1 alumno/a' : `Han participado ${part.length} alumnos/as`}. Toca un nombre para ver lo que ha escrito.</div>
           <div class="chips">${part.map((a, i) => `<button class="chip" onclick="verAlumno('${c.codigo}',${i})">${esc(a.alias)} <small>${a.envios}</small></button>`).join('')}</div></div>`
       : '<div class="part ayuda">Aún no ha escrito nadie con este código.</div>';
-    return `<div style="padding:12px 0;border-bottom:1px solid var(--linea);${c.activa === 'sí' ? '' : 'opacity:.45'}">
+    return `<div class="${c.activa === 'sí' ? '' : 'clase-off'}" style="padding:12px 0;border-bottom:1px solid var(--linea)">
       <div class="fila"><div><b>${esc(c.nombre)}</b>${c.alumnos ? ` <button class="ayuda num-al" onclick="formAlumnos('${c.codigo}')">· ${c.alumnos} alumnos ✏️</button>` : ''}${esAdmin() && c.mia === false ? ' <span class="ayuda">(de otro maestro)</span>' : ''}<div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>
-      ${c.activa === 'sí' ? `<button class="btn-peq sec" onclick="desactivarClase('${c.codigo}')">Desactivar</button>` : '<span class="ayuda">Desactivado</span>'}</div>
+      ${c.activa === 'sí' ? `<button class="btn-peq sec" onclick="desactivarClase('${c.codigo}')">Desactivar</button>` : `<button class="btn-peq peligro" style="opacity:1" onclick="eliminarClase('${c.codigo}')">Eliminar</button>`}</div>
       ${!c.alumnos && c.activa === 'sí' ? `<div class="aviso-num"><span>Indica cuántos alumnos tiene este grupo para el ranking.</span><button class="btn-peq" onclick="formAlumnos('${c.codigo}')">Indicar</button></div>` : ''}
       ${lista}</div>`;
   }).join('');
@@ -1104,6 +1110,21 @@ async function crearClase(){
   const alumnos = +$('#nAlumnos').value; if (!(alumnos >= 1 && alumnos <= 60)) { aviso('Indica cuántos alumnos tiene el grupo', true); return; }
   try { const j = await api('crearClase', { token: S.sesion.token, nombre, alumnos }, true); aviso('Código creado: ' + j.codigo); $('#nClase').value = ''; $('#nAlumnos').value = ''; await cargarClases(); }
   catch(e){ aviso(e.message, true); }
+}
+async function eliminarClase(codigo){
+  const c = S.clases.find(x => x.codigo === codigo);
+  const n = c && c.participantes ? c.participantes.reduce((t, a) => t + a.envios, 0) : 0;
+  if (!confirmarDoble('el' + codigo, n ? `Toca otra vez: se borrará la clase y sus ${n} mensajes` : 'Toca otra vez para eliminar la clase')) return;
+  try { const j = await api('eliminarClase', { token: S.sesion.token, codigo }, true);
+    aviso(j.borrados ? `Clase eliminada con sus ${j.borrados} mensajes` : 'Clase eliminada');
+    await Promise.all([cargarClases(), cargarPublicas(), cargarPendientes()]); pintar(); }
+  catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); }
+}
+async function retirarPublicacion(tipo, id){
+  if (!confirmarDoble('ret' + id, 'Toca otra vez para retirar la publicación')) return;
+  try { await api('retirar', { token: S.sesion.token, tipo, id }, true); cerrarHoja(); aviso('Publicación retirada');
+    await cargarPublicas(); pintar(); }
+  catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); }
 }
 async function desactivarClase(codigo){
   if (!confirmarDoble(codigo, 'Toca otra vez para desactivar el código')) return;
