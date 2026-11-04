@@ -53,6 +53,7 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:13px;font-weight:600}
 .pill.libre{background:var(--musgo-bg);color:var(--musgo)}
 .pill.ocupada{background:var(--teja-bg);color:var(--teja)}
+.pill.neutra-c{background:var(--papel2);color:var(--tinta2)}
 .pill.neutra{background:rgba(255,255,255,.14);color:#F1EEF9}
 .punto{width:8px;height:8px;border-radius:50%;background:currentColor}
 .tramos-hoy{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:18px}
@@ -210,7 +211,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.14';
+const VERSION_APP = '1.15';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -467,11 +468,7 @@ function irRevisar(){
   setTimeout(() => { const el = $('#revision'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
 }
 
-function irHoy(){
-  S.mesVista = S.estado.mes; ir('calendario');
-  const f = S.estado.ahora.fecha, ds = diaSem(f);
-  if (ds !== 0 && ds !== 6) abrirDia(f);
-}
+function irHoy(){ S.mesVista = S.estado.ahora.fecha.slice(0, 7); ir('calendario'); }
 
 /* ============ CALENDARIO ============ */
 function vCalendario(){
@@ -771,6 +768,24 @@ function perfilMaestro(){
     <button class="btn sec" style="margin-top:10px" onclick="salirMaestro()">Cerrar sesión</button>`;
 }
 
+/** Lo que ha escrito un alumno con un código de clase. */
+function verAlumno(codigo, i){
+  const c = (S.clases || []).find(x => x.codigo === codigo); if (!c) return;
+  const a = c.participantes[i];
+  const est = { aprobada: ['Publicado', 'libre'], pendiente: ['Pendiente', 'neutra-c'], rechazada: ['Descartado', 'ocupada'] };
+  const items = a.mensajes || [];
+  abrirHoja(`<h2>${esc(a.alias)}</h2>
+    <p class="ayuda">${esc(c.nombre)} · ${a.envios === 1 ? '1 mensaje' : a.envios + ' mensajes'} · último el ${fechaCorta(a.ultimo)}</p>
+    ${items.length ? items.map(m => `<div style="padding:14px 0;border-bottom:1px solid var(--linea)">
+        <div class="fila"><b>${m.tipo === 'resena' ? '📖 ' + esc(m.libro) : '💡 ' + esc(m.titulo)}</b>
+          <span class="pill ${(est[m.estado] || est.pendiente)[1]}" style="flex-shrink:0">${(est[m.estado] || est.pendiente)[0]}</span></div>
+        ${m.tipo === 'resena' ? `<div class="estrellas" style="margin-top:2px">${estrellas(+m.valoracion)}</div>` : ''}
+        <p style="font-size:14px;color:var(--tinta2);margin-top:4px;white-space:pre-wrap">${esc(m.texto)}</p>
+        <div class="meta" style="margin-top:4px">${fechaCorta(m.creada)}</div></div>`).join('')
+      : '<p class="ayuda" style="margin-top:12px">Falta actualizar el servidor para ver los mensajes.</p>'}
+    <button class="btn" onclick="cerrarHoja()">Cerrar</button>`);
+}
+
 /* ============ GUÍA PARA EL PROFESORADO ============ */
 function vGuia(){
   const paso = (n, titulo, texto, img) => `<section class="card guia-paso">
@@ -794,7 +809,7 @@ function vGuia(){
     ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>tocarlo dos veces</b>: la app te lo indica.</p>
       <p>Solo puedes anular <b>tus</b> reservas. Si necesitas una hora reservada por otra persona, habla con ella.</p>`, 'anular')}
     ${paso(6, 'Crear los códigos de tus clases', `<p>En <b>Perfil → Códigos de clase</b>, escribe el nombre y pulsa <b>Crear</b>. Crea una por cada grupo o materia que des (p. ej. «Lengua 5.º», «Cono 6.º»).</p>
-      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre, <b>sin apellidos</b>.</li><li>Debajo de cada código verás <b>qué alumnos han participado</b> y cuántos mensajes ha enviado cada uno.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
+      <ul><li>Da el código a tu alumnado <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre, <b>sin apellidos</b>.</li><li>Debajo de cada código verás <b>qué alumnos han participado</b> y cuántos mensajes ha enviado cada uno. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>Si el código se difunde fuera de clase, pulsa <b>Desactivar</b> y crea otro.</li></ul>`, 'clases')}
     ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
       <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>`, 'revisar')}
     ${paso(8, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
@@ -868,8 +883,8 @@ function pintarClases(){
   return S.clases.map(c => {
     const part = c.participantes;
     const lista = !part ? '' : part.length
-      ? `<div class="part"><div class="ayuda">${part.length === 1 ? 'Ha participado 1 alumno/a <span style="opacity:.7">(el número son los mensajes enviados)</span>' : `Han participado ${part.length} alumnos/as`} <span style="opacity:.7">(el número son los mensajes enviados)</span>:</div>
-          <div class="chips">${part.map(a => `<span class="chip" title="Último envío: ${fechaCorta(a.ultimo)}">${esc(a.alias)} <small>${a.envios}</small></span>`).join('')}</div></div>`
+      ? `<div class="part"><div class="ayuda">${part.length === 1 ? 'Ha participado 1 alumno/a' : `Han participado ${part.length} alumnos/as`}. Toca un nombre para ver lo que ha escrito.</div>
+          <div class="chips">${part.map((a, i) => `<button class="chip" onclick="verAlumno('${c.codigo}',${i})">${esc(a.alias)} <small>${a.envios}</small></button>`).join('')}</div></div>`
       : '<div class="part ayuda">Aún no ha escrito nadie con este código.</div>';
     return `<div style="padding:12px 0;border-bottom:1px solid var(--linea);${c.activa === 'sí' ? '' : 'opacity:.45'}">
       <div class="fila"><div><b>${esc(c.nombre)}</b>${esAdmin() && c.mia === false ? ' <span class="ayuda">(de otro maestro)</span>' : ''}<div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>

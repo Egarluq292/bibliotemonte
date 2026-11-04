@@ -404,12 +404,16 @@ function listarClases(p) {
       const porAlumno = {};
       envios.filter(x => x.codigoClase === c.codigo).forEach(x => {
         const k = normalizar(x.alias);
-        const a = porAlumno[k] || (porAlumno[k] = { alias: x.alias, envios: 0, publicados: 0, ultimo: '' });
+        const a = porAlumno[k] || (porAlumno[k] = { alias: x.alias, envios: 0, publicados: 0, ultimo: '', mensajes: [] });
         a.envios++;
+        a.mensajes.push(x.libro !== undefined
+          ? { tipo: 'resena', libro: x.libro, valoracion: x.valoracion, texto: x.texto, estado: x.estado, creada: x.creada }
+          : { tipo: 'sugerencia', titulo: x.titulo, texto: x.texto, estado: x.estado, creada: x.creada });
         if (x.estado === 'aprobada') a.publicados++;
         if (x.creada > a.ultimo) a.ultimo = x.creada;
       });
       const participantes = Object.keys(porAlumno).map(k => porAlumno[k]).sort((a, b) => b.envios - a.envios);
+      participantes.forEach(a => a.mensajes.sort((x, y) => x.creada < y.creada ? 1 : -1));
       return { codigo: c.codigo, nombre: c.nombre, activa: c.activa, mia: c.maestroId === m.id, participantes };
     })
   };
