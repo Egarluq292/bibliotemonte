@@ -162,6 +162,7 @@ textarea{min-height:120px;resize:vertical}
 .instalar .cerrar:hover{background:var(--papel2)}
 .ico-app{width:54px;height:54px;border-radius:14px;flex-shrink:0;box-shadow:0 4px 12px rgba(43,35,80,.25)}
 .num-paso{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--tinta);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+.revisar{width:100%;display:flex;align-items:center;gap:12px;background:var(--teja);color:#fff;margin-bottom:14px;padding:14px 16px}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -312,7 +313,12 @@ function vInicio(){
   const res = S.publicas ? S.publicas.resenas : [];
   const nPend = S.pendientes ? S.pendientes.sugerencias.length + S.pendientes.resenas.length : 0;
 
-  return cabecera() + `
+  const avisoRev = esMaestro() && nPend ? `<button class="card revisar" onclick="irRevisar()">
+      <span class="icono" style="background:rgba(255,255,255,.2)">🔔</span>
+      <span style="flex:1;text-align:left"><b>${nPend === 1 ? 'Tienes 1 comentario por revisar' : `Tienes ${nPend} comentarios por revisar`}</b>
+      <span style="display:block;font-size:13px;opacity:.85">${S.pendientes.todas ? 'Ves los de todas las clases' : 'De tus clases'}</span></span>
+      <span class="ir" style="color:#fff">›</span></button>` : '';
+  return cabecera() + avisoRev + `
   <button class="card hero" style="width:100%;text-align:left" onclick="irHoy()">
         <div class="etq">La biblioteca ahora</div>
     <div class="estado">${sit.estado}</div>
@@ -323,7 +329,7 @@ function vInicio(){
 
   <div class="grid2" style="margin-top:14px">
     <button class="card mini" onclick="S.buzonTab='sugerencias';ir('buzon')">
-      <div class="fila"><span class="icono">💡</span>${nPend && esMaestro() ? `<span class="badge">${nPend}</span>` : ''}</div>
+      <div class="fila"><span class="icono">💡</span></div>
       <div><div class="n">${sug.length}</div><div class="etq" style="margin-top:4px">Sugerencias</div>
       <div class="sub">${sug[0] ? esc(sug[0].titulo) : 'Aún no hay ninguna'}</div></div>
     </button>
@@ -343,6 +349,11 @@ function vInicio(){
     </div>
   </button>
   ${tarjetaInstalar(true)}`;
+}
+
+function irRevisar(){
+  ir('perfil');
+  setTimeout(() => { const el = $('#revision'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
 }
 
 function irHoy(){
@@ -592,11 +603,12 @@ function perfilMaestro(){
   return `<div class="card"><div class="etq">${m.rol === 'admin' ? 'Administrador' : 'Maestro/a'}</div>
       <h2 style="margin-top:4px">${esc(m.nombre)}</h2></div>
 
-    <div class="card"><div class="fila"><div class="etq">Revisar comentarios</div>${pend.length ? `<span class="badge">${pend.length}</span>` : ''}</div>
+    <div class="card" id="revision" style="scroll-margin-top:16px"><div class="fila"><div class="etq">Revisar comentarios</div>${pend.length ? `<span class="badge">${pend.length}</span>` : ''}</div>
+      <p class="ayuda" style="margin-top:4px">${p.todas ? 'Como administrador ves los de todas las clases.' : 'Los que envía el alumnado con los códigos de tus clases.'}</p>
       ${pend.length ? pend.map(x => `<div style="padding:12px 0;border-bottom:1px solid var(--linea)">
           <b>${esc(x._t === 'resena' ? '📖 ' + x.libro : '💡 ' + x.titulo)}</b>${x._t === 'resena' ? ` <span class="estrellas">${estrellas(+x.valoracion)}</span>` : ''}
           <p style="font-size:14px;color:var(--tinta2);margin-top:4px;white-space:pre-wrap">${esc(x.texto)}</p>
-          <div class="meta" style="margin-top:4px">${esc(x.alias)} · ${esc(x.clase)} · ${fechaCorta(x.creada)}</div>
+          <div class="meta" style="margin-top:4px">${esc(x.alias)} · ${esc(x.clase)} · ${fechaCorta(x.creada)}${p.todas && !x.mia ? ' · <b>de otra clase</b>' : ''}</div>
           <div style="display:flex;gap:8px;margin-top:10px">
             <button class="btn-peq" onclick="moderar('${x._t}','${x.id}','aprobada')">Publicar</button>
             <button class="btn-peq peligro" onclick="moderar('${x._t}','${x.id}','rechazada')">Descartar</button></div></div>`).join('')
@@ -698,8 +710,8 @@ async function moderar(tipo, id, decision){
   try {
     await api('moderar', { token: S.sesion.token, tipo, id, decision }, true);
     aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado');
-    await Promise.all([cargarPendientes(), cargarPublicas()]); pintar();
   } catch(e){ aviso(e.message, true); }
+  await Promise.all([cargarPendientes(), cargarPublicas()]); pintar();
 }
 
 /* ============ INSTALAR COMO APP ============ */

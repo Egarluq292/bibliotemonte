@@ -33,8 +33,8 @@ const HOJAS = {
   Maestros:    ['id', 'nombre', 'nombreClave', 'sal', 'hash', 'rol', 'token', 'alta'],
   Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta'],
   Reservas:    ['id', 'fecha', 'tramo', 'maestroId', 'maestro', 'grupo', 'creada', 'estado', 'anuladaPor'],
-  Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor'],
-  Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor'],
+  Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
+  Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
   Festivos:    ['fecha', 'motivo']
 };
 
@@ -288,7 +288,8 @@ function enviarSugerencia(p) {
   const s = {
     id: 'S' + Date.now().toString(36), creada: ahoraLocal().completo, tipoAutor: a.tipo, alias: a.alias, clase: a.clase,
     titulo: texto(p.titulo, 80, 'título'), texto: texto(p.texto, 1000, 'texto'),
-    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: ''
+    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: '',
+    codigoClase: a.codigo, maestroClase: a.maestroId
   };
   anadir('Sugerencias', s);
   return { estado: s.estado };
@@ -302,14 +303,15 @@ function enviarResena(p) {
     id: 'L' + Date.now().toString(36), creada: ahoraLocal().completo, tipoAutor: a.tipo, alias: a.alias, clase: a.clase,
     libro: texto(p.libro, 100, 'título del libro'), autorLibro: texto(p.autorLibro || '-', 80, 'autor'),
     valoracion: String(Math.round(val)), texto: texto(p.texto, 1000, 'reseña'),
-    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: ''
+    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: '',
+    codigoClase: a.codigo, maestroClase: a.maestroId
   };
   anadir('Resenas', r);
   return { estado: r.estado };
 }
 
 function autor(p) {
-  if (p.token) { const m = maestroPorToken(p.token); return { tipo: 'maestro', alias: m.nombre, clase: '' }; }
+  if (p.token) { const m = maestroPorToken(p.token); return { tipo: 'maestro', alias: m.nombre, clase: '', codigo: '', maestroId: m.id }; }
   const codigo = String(p.codigoClase || '').trim().toUpperCase();
   const clase = filas('Clases').find(c => c.codigo === codigo && c.activa === 'sí');
   if (!clase) throw new Error('El código de clase no es correcto.');
@@ -318,14 +320,16 @@ function autor(p) {
   const n = Number(cache.get('envios_' + codigo) || 0);
   if (n >= 20) throw new Error('Tu clase ha enviado muchos mensajes seguidos. Espera un poco.');
   cache.put('envios_' + codigo, String(n + 1), 600);
-  return { tipo: 'alumno', alias: texto(p.alias, 20, 'nombre'), clase: clase.nombre };
+  return { tipo: 'alumno', alias: texto(p.alias, 20, 'nombre'), clase: clase.nombre, codigo: clase.codigo, maestroId: clase.maestroId };
 }
 
-/** { token } → lo que espera revisión. */
+/** { token } → lo que espera revisión: cada maestro, lo de sus clases; el administrador, todo. */
 function pendientes(p) {
-  maestroPorToken(p.token);
-  const pend = (h) => filas(h).filter(x => x.estado === 'pendiente').map(x => { const o = Object.assign({}, x); delete o._fila; return o; });
-  return { sugerencias: pend('Sugerencias'), resenas: pend('Resenas') };
+  const m = maestroPorToken(p.token);
+  const pend = (h) => filas(h)
+    .filter(x => x.estado === 'pendiente' && (m.rol === 'admin' || x.maestroClase === m.id))
+    .map(x => { const o = Object.assign({}, x); delete o._fila; o.mia = x.maestroClase === m.id; return o; });
+  return { sugerencias: pend('Sugerencias'), resenas: pend('Resenas'), todas: m.rol === 'admin' };
 }
 
 /** { token, tipo:'sugerencia'|'resena', id, decision:'aprobada'|'rechazada' } */
@@ -335,6 +339,8 @@ function moderar(p) {
   if (['aprobada', 'rechazada'].indexOf(p.decision) === -1) throw new Error('Decisión no válida.');
   const x = filas(hoja).find(f => f.id === p.id);
   if (!x) throw new Error('No encontrado.');
+  if (m.rol !== 'admin' && x.maestroClase !== m.id) throw new Error('Solo puedes revisar los comentarios de tus clases.');
+  if (x.estado !== 'pendiente') throw new Error('Otro maestro ya lo ha revisado.');
   escribir(hoja, x._fila, { estado: p.decision, moderadaPor: m.nombre });
   return { id: x.id, estado: p.decision };
 }
@@ -383,6 +389,8 @@ function filas(nombre) {
 function anadir(nombre, obj) {
   const cab = HOJAS[nombre];
   const h = hoja(nombre);
+  // Si la hoja se creó con una versión anterior, completa la fila de títulos.
+  if (h.getLastColumn() < cab.length) h.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold');
   const fila = h.getLastRow() + 1;
   h.getRange(fila, 1, 1, cab.length).setNumberFormat('@').setValues([cab.map(c => obj[c] == null ? '' : String(obj[c]))]);
 }
