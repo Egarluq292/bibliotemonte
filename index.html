@@ -157,6 +157,11 @@ textarea{min-height:120px;resize:vertical}
 .aviso{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translate(-50%,-150%);background:var(--tinta);color:var(--papel);padding:12px 18px;border-radius:14px;font-size:14px;font-weight:500;z-index:60;transition:transform .25s;max-width:calc(100% - 32px);text-align:center}
 .aviso.on{transform:translate(-50%,0)}
 .aviso.error{background:var(--teja)}
+.instalar{background:linear-gradient(135deg,#FFFEFB 0%,#F4EEF8 100%);border:1.5px solid var(--linea)}
+.instalar .cerrar{position:absolute;top:10px;right:12px;width:30px;height:30px;border-radius:50%;color:var(--suave);font-size:14px}
+.instalar .cerrar:hover{background:var(--papel2)}
+.ico-app{width:54px;height:54px;border-radius:14px;flex-shrink:0;box-shadow:0 4px 12px rgba(43,35,80,.25)}
+.num-paso{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--tinta);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -336,7 +341,8 @@ function vInicio(){
         : S.alumno ? esc(S.alumno.alias) + ' · alumno/a' : 'Elige si eres alumno/a o maestro/a'}</div></div>
       <span class="ir">›</span>
     </div>
-  </button>`;
+  </button>
+  ${tarjetaInstalar(true)}`;
 }
 
 function irHoy(){
@@ -526,16 +532,16 @@ async function enviarMensaje(res){
 /* ============ PERFIL ============ */
 function vPerfil(){
   let html = cabecera('Perfil');
-  if (esMaestro()) return html + perfilMaestro();
+  if (esMaestro()) return html + perfilMaestro() + `<div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
   if (S.alumno) return html + `<div class="card"><div class="etq">Alumno/a</div><h2 style="margin-top:4px">${esc(S.alumno.alias)}</h2>
       <p class="ayuda">Código de clase: <span class="codigo">${esc(S.alumno.codigoClase)}</span></p>
       <p class="ayuda">Puedes escribir sugerencias y reseñas de libros. Las reservas las hace tu maestro o maestra.</p>
-      <button class="btn sec" onclick="salirAlumno()">Cambiar de usuario</button></div>`;
+      <button class="btn sec" onclick="salirAlumno()">Cambiar de usuario</button></div>${tarjetaInstalar(false)}`;
   return html + `<p class="ayuda" style="font-size:15px;margin-bottom:14px;text-align:center">¿Quién eres?</p>
     <div class="roles">
       <button class="card rol" onclick="formAlumno()"><div class="e">🎒</div><h3>Alumno/a</h3><p>Escribe sugerencias y reseñas</p></button>
       <button class="card rol" onclick="formMaestro('entrar')"><div class="e">🍎</div><h3>Maestro/a</h3><p>Reserva la biblioteca</p></button>
-    </div>`;
+    </div><div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
 }
 
 function formAlumno(){
@@ -694,6 +700,55 @@ async function moderar(tipo, id, decision){
     aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado');
     await Promise.all([cargarPendientes(), cargarPublicas()]); pintar();
   } catch(e){ aviso(e.message, true); }
+}
+
+/* ============ INSTALAR COMO APP ============ */
+let avisoInstalar = null;
+const esApp = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const esIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); avisoInstalar = e; pintar(); });
+window.addEventListener('appinstalled', () => { avisoInstalar = null; aviso('App instalada ✓'); pintar(); });
+
+function tarjetaInstalar(conCerrar){
+  if (esApp()) return '';
+  if (conCerrar && leer('bib_sinInstalar')) return '';
+  return `<div class="card instalar">
+    ${conCerrar ? '<button class="cerrar" onclick="ocultarInstalar()" aria-label="Cerrar">✕</button>' : ''}
+    <div class="fila" style="justify-content:flex-start;gap:14px">
+      <img src="img/icono-192.png" alt="" class="ico-app">
+      <div style="padding-right:22px"><b>Instala la Biblioteca como app</b>
+      <p class="ayuda" style="margin-top:2px">Ábrela con un toque desde la pantalla de inicio o el escritorio, a pantalla completa.</p></div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="instalarApp()">${avisoInstalar ? 'Instalar' : 'Cómo instalarla'}</button>
+  </div>`;
+}
+function ocultarInstalar(){ guardar('bib_sinInstalar', true); pintar(); aviso('Podrás instalarla cuando quieras desde tu Perfil'); }
+
+async function instalarApp(){
+  if (avisoInstalar) {
+    avisoInstalar.prompt();
+    const r = await avisoInstalar.userChoice.catch(() => null);
+    if (r && r.outcome === 'accepted') avisoInstalar = null;
+    pintar(); return;
+  }
+  const paso = (n, t) => `<div class="fila" style="justify-content:flex-start;gap:12px;padding:10px 0"><span class="num-paso">${n}</span><span>${t}</span></div>`;
+  let pasos;
+  if (esIOS()) pasos = `<p class="etq" style="margin-top:6px">iPhone o iPad</p>
+      ${paso(1, 'Abre esta web en <b>Safari</b>.')}
+      ${paso(2, 'Pulsa el botón <b>Compartir</b> (el cuadrado con la flecha ↑).')}
+      ${paso(3, 'Elige <b>Añadir a pantalla de inicio</b> y después <b>Añadir</b>.')}`;
+  else if (/android/i.test(navigator.userAgent)) pasos = `<p class="etq" style="margin-top:6px">Android</p>
+      ${paso(1, 'Abre esta web en <b>Chrome</b>.')}
+      ${paso(2, 'Pulsa el menú <b>⋮</b> de arriba a la derecha.')}
+      ${paso(3, 'Elige <b>Instalar aplicación</b> o <b>Añadir a pantalla de inicio</b>.')}`;
+  else pasos = `<p class="etq" style="margin-top:6px">Ordenador (Chrome o Edge)</p>
+      ${paso(1, 'Busca el icono de <b>instalar ⊕</b> a la derecha de la barra de direcciones y púlsalo.')}
+      ${paso(2, 'Si no aparece: menú <b>⋮</b> → <b>Transmitir, guardar y compartir</b> → <b>Instalar página como aplicación</b>.')}
+      ${paso(3, 'Se abrirá en su propia ventana y tendrá acceso directo en el escritorio.')}`;
+  abrirHoja(`<h2>Instalar como app</h2>
+    <p class="ayuda" style="font-size:15px">Se instala en un momento, no ocupa casi espacio y se actualiza sola.</p>
+    ${pasos}
+    <button class="btn" onclick="cerrarHoja()">Entendido</button>`);
 }
 
 /* ============ ARRANQUE ============ */
