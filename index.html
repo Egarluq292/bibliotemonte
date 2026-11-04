@@ -243,7 +243,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.17';
+const VERSION_APP = '1.18';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -501,6 +501,9 @@ function vInicio(){
     </button>
   </div>
 
+  <div style="margin-top:14px">${tarjetaLibro(libroDestacado())}</div>
+  <div style="margin-top:14px">${tarjetaRanking(ranking(50), MESES[+S.estado.ahora.fecha.slice(5, 7) - 1], true)}</div>
+
   <button class="card" style="width:100%;text-align:left;margin-top:14px" onclick="ir('perfil')">
     <div class="fila">
       <div><div class="etq">Tu perfil</div>
@@ -541,7 +544,7 @@ function libroDestacado(){
 }
 
 /** Ranking de clases del mes: publicaciones por alumno (solo cuenta lo publicado). */
-function ranking(){
+function ranking(limite = 5){
   const mes = S.estado.ahora.fecha.slice(0, 7);
   const p = pub();
   const tam = {}; (p.clases || []).forEach(c => tam[norm(c.nombre)] = c.alumnos);
@@ -555,7 +558,33 @@ function ranking(){
     });
   return Object.values(g).filter(r => r.alumnos > 0)
     .map(r => Object.assign(r, { media: r.n / r.alumnos }))
-    .sort((a, b) => b.media - a.media || b.n - a.n).slice(0, 5);
+    .sort((a, b) => b.media - a.media || b.n - a.n).slice(0, limite);
+}
+
+function tarjetaLibro(libro){
+  return `<div class="card destacado">
+    <div class="fila"><div class="etq">⭐ ${libro ? libro.titulo : 'Libro del mes'}</div>${libro ? `<span class="ayuda">${libro.n === 1 ? '1 reseña' : libro.n + ' reseñas'}</span>` : ''}</div>
+    ${libro ? `<div class="libro">
+        <div class="portada"><span>${esc(libro.libro.slice(0, 1).toUpperCase())}</span></div>
+        <div style="min-width:0"><h3>${esc(libro.libro)}</h3>
+          ${libro.autor && libro.autor !== '-' ? `<p class="autor">${esc(libro.autor)}</p>` : ''}
+          <div class="estrellas" style="font-size:18px">${estrellas(Math.round(libro.suma / libro.n))} <small class="ayuda">${(libro.suma / libro.n).toFixed(1).replace('.', ',')}</small></div></div>
+      </div>
+      <p class="cita">«${esc(libro.mejor.texto.length > 140 ? libro.mejor.texto.slice(0, 137) + '…' : libro.mejor.texto)}»<span>— ${esc(libro.mejor.alias)}, ${esc(libro.mejor.clase)}</span></p>`
+    : '<p class="ayuda" style="margin-top:8px">Aún no hay reseñas. ¡Escribe la primera!</p>'}
+  </div>`;
+}
+function tarjetaRanking(rk, mesNombre, profesorado){
+  const medallas = ['🥇', '🥈', '🥉'];
+  return `<div class="card">
+    <div class="fila"><div class="etq">🏆 Clases más lectoras · ${mesNombre}</div></div>
+    ${rk.length ? `<div class="ranking">${rk.map((r, i) => `<div class="rk ${i < 3 ? 'top' : ''}">
+        <span class="med">${medallas[i] || (i + 1) + '.º'}</span>
+        <span class="nom"><b>${esc(r.nombre)}</b><small>${r.n === 1 ? '1 publicación' : r.n + ' publicaciones'} · ${r.alumnos} alumnos</small></span>
+        <span class="pts">${r.media.toFixed(2).replace('.', ',')}<small>por alumno</small></span></div>`).join('')}</div>
+      <p class="ayuda" style="margin-top:10px">Gana la clase con más reseñas y sugerencias publicadas por alumno este mes, así las clases pequeñas compiten igual.${profesorado ? ' El alumnado ve los 5 primeros. Las clases sin número de alumnos no aparecen.' : ''}</p>`
+    : `<p class="ayuda" style="margin-top:8px">Este mes aún no hay clases en el ranking. Cuentan las reseñas y sugerencias publicadas de cada clase.</p>`}
+  </div>`;
 }
 
 function vInicioAlumno(){
@@ -564,7 +593,6 @@ function vInicioAlumno(){
   const libro = libroDestacado();
   const rk = ranking();
   const mesNombre = MESES[+S.estado.ahora.fecha.slice(5, 7) - 1];
-  const medallas = ['🥇', '🥈', '🥉', '4.º', '5.º'];
   const res = pub().resenas.length, sug = pub().sugerencias.length;
 
   return cabecera() + `
@@ -576,27 +604,8 @@ function vInicioAlumno(){
     <button class="btn btn-oro" onclick="${nombre ? "S.buzonTab='resenas';ir('buzon');setTimeout(nuevoMensaje,50)" : "ir('perfil')"}">${nombre ? '✍️ Escribir una reseña' : 'Entrar con mi código de clase'}</button>
   </div>
 
-  <div class="card destacado">
-    <div class="fila"><div class="etq">⭐ ${libro ? libro.titulo : 'Libro del mes'}</div>${libro ? `<span class="ayuda">${libro.n === 1 ? '1 reseña' : libro.n + ' reseñas'}</span>` : ''}</div>
-    ${libro ? `<div class="libro">
-        <div class="portada"><span>${esc(libro.libro.slice(0, 1).toUpperCase())}</span></div>
-        <div style="min-width:0"><h3>${esc(libro.libro)}</h3>
-          ${libro.autor && libro.autor !== '-' ? `<p class="autor">${esc(libro.autor)}</p>` : ''}
-          <div class="estrellas" style="font-size:18px">${estrellas(Math.round(libro.suma / libro.n))} <small class="ayuda">${(libro.suma / libro.n).toFixed(1).replace('.', ',')}</small></div></div>
-      </div>
-      <p class="cita">«${esc(libro.mejor.texto.length > 140 ? libro.mejor.texto.slice(0, 137) + '…' : libro.mejor.texto)}»<span>— ${esc(libro.mejor.alias)}, ${esc(libro.mejor.clase)}</span></p>`
-    : '<p class="ayuda" style="margin-top:8px">Aún no hay reseñas. ¡Escribe la primera!</p>'}
-  </div>
-
-  <div class="card">
-    <div class="fila"><div class="etq">🏆 Clases más lectoras · ${mesNombre}</div></div>
-    ${rk.length ? `<div class="ranking">${rk.map((r, i) => `<div class="rk ${i < 3 ? 'top' : ''}">
-        <span class="med">${medallas[i]}</span>
-        <span class="nom"><b>${esc(r.nombre)}</b><small>${r.n === 1 ? '1 publicación' : r.n + ' publicaciones'} · ${r.alumnos} alumnos</small></span>
-        <span class="pts">${r.media.toFixed(1).replace('.', ',')}<small>por alumno</small></span></div>`).join('')}</div>
-      <p class="ayuda" style="margin-top:10px">Gana la clase con más reseñas y sugerencias publicadas por alumno este mes, así las clases pequeñas compiten igual.</p>`
-    : `<p class="ayuda" style="margin-top:8px">Este mes aún no hay clases en el ranking. Cuentan las reseñas y sugerencias publicadas de cada clase.</p>`}
-  </div>
+  ${tarjetaLibro(libro)}
+  ${tarjetaRanking(rk, mesNombre, false)}
 
   <div class="grid2" style="margin-top:14px">
     <button class="card mini" onclick="S.buzonTab='resenas';ir('buzon')">
@@ -975,7 +984,8 @@ function vGuia(){
       <ul><li>Escribe el <b>código de centro</b>: te lo da el administrador.</li><li>Pon tu <b>nombre y apellido</b> tal como quieres que salgan en las reservas.</li><li>Inventa una <b>clave</b> de al menos 4 caracteres. Nadie más la ve.</li></ul>
       <p>Solo se hace una vez. En otro dispositivo, usa <b>«Entrar»</b> con tu nombre y tu clave.</p>`, 'alta')}
     ${paso(2, 'Ver si la biblioteca está libre', `<p>En <b>Inicio</b> verás al momento si está <b>libre u ocupada</b> y por quién.</p>
-      <p>Las cuatro casillas son las sesiones del día. La que pone <b>«Ahora»</b> es la que está en curso.</p>`, 'inicio')}
+      <p>Las cuatro casillas son las sesiones del día. La que pone <b>«Ahora»</b> es la que está en curso.</p>
+      <p>Más abajo, en el mismo Inicio, tienes el <b>libro del mes</b> y el <b>ranking completo de clases</b> (el alumnado solo ve los 5 primeros).</p>`, 'inicio')}
     ${paso(3, 'Consultar el calendario', `<p>En la pestaña <b>Reservas</b> está el mes completo, de lunes a viernes.</p>
       <p>Cada día tiene <b>cuatro barras</b>, una por sesión (9:30 · 10:30 · 12:00 · 13:00): <b style="color:#2F8550">verde</b> = libre, <b style="color:#B03A86">magenta</b> = reservada. Para cambiar de mes, <b>desliza el dedo</b> a los lados o usa ‹ ›.</p>`, 'calendario')}
     ${paso(4, 'Reservar', `<ol><li>Toca el día.</li><li>En una sesión libre, pulsa <b>Reservar</b>.</li><li>Elige tu clase en los botones (o escribe el motivo).</li><li>Pulsa <b>OK</b>.</li></ol>
