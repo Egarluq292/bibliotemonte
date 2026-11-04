@@ -112,6 +112,7 @@ textarea{min-height:120px;resize:vertical}
 .btn.peligro{background:var(--teja-bg);color:var(--teja)}
 .btn:disabled{opacity:.5}
 .btn-peq{padding:8px 14px;border-radius:11px;font-weight:600;font-size:14px;background:var(--tinta);color:var(--papel)}
+.btn-peq.ajusta{padding:8px 4px;font-size:13px}
 .btn-peq.sec{background:var(--papel2);color:var(--tinta)}
 .btn-peq.peligro{background:var(--teja-bg);color:var(--teja)}
 .ayuda{font-size:13px;color:var(--suave);margin-top:8px}
@@ -561,7 +562,7 @@ async function accesoMaestro(accion, datos){
     await cargarPendientes(); pintar(); cargarClases();
   } catch(e){ aviso(e.message, true); b.disabled = false; }
 }
-function salirMaestro(){ S.sesion = null; S.pendientes = null; S.clases = null; guardar('bib_sesion', null); pintar(); }
+function salirMaestro(){ S.sesion = null; S.pendientes = null; S.clases = null; S.admin = null; guardar('bib_sesion', null); pintar(); }
 
 function perfilMaestro(){
   const m = S.sesion.maestro;
@@ -585,11 +586,70 @@ function perfilMaestro(){
     <div class="card"><div class="etq">Códigos de clase</div>
       <p class="ayuda">Da el código a tu alumnado para que pueda escribir. Si se difunde fuera de clase, desactívalo y crea otro.</p>
       <div id="clases">${pintarClases()}</div>
-      <div class="reservar-form" style="margin-top:12px"><input id="nClase" maxlength="30" placeholder="Nombre de la clase (p. ej. 3.º A)">
+      <div class="reservar-form" style="margin-top:12px"><input id="nClase" maxlength="30" placeholder="Clase (p. ej. 3.º A)">
       <button class="btn-peq" onclick="crearClase()">Crear</button></div>
     </div>
 
-    <button class="btn sec" onclick="salirMaestro()">Cerrar sesión</button>`;
+    ${m.rol === 'admin' ? `<div class="card"><div class="etq">Administración</div><div id="admin">${pintarAdmin()}</div></div>` : ''}
+
+    <button class="btn sec" onclick="formClave()">Cambiar mi clave</button>
+    <button class="btn sec" style="margin-top:10px" onclick="salirMaestro()">Cerrar sesión</button>`;
+}
+
+/* ============ ADMINISTRACIÓN ============ */
+function pintarAdmin(){
+  if (!S.admin) { cargarAdmin(); return '<p class="ayuda">Cargando…</p>'; }
+  if (S.admin.error) return `<p class="ayuda">${esc(S.admin.error)}</p>`;
+  const yo = S.sesion.maestro.id;
+  return `<p class="ayuda">Código de centro (dáselo a los maestros para que se den de alta):</p>
+    <div class="fila" style="margin-top:8px"><span class="codigo" style="font-size:18px">${esc(S.admin.codigoCentro)}</span>
+      <button class="btn-peq sec" onclick="cambiarCodigoCentro()">Cambiar</button></div>
+    <p class="ayuda" style="margin-top:6px">Cámbialo si se difunde. Los maestros ya dados de alta no se ven afectados.</p>
+    <div class="linea"></div>
+    <div class="fila"><b>Maestros (${S.admin.maestros.length})</b></div>
+    ${S.admin.maestros.map(x => `<div style="padding:12px 0;border-bottom:1px solid var(--linea)">
+        <div class="fila"><div><b>${esc(x.nombre)}</b>${x.id === yo ? ' <span class="ayuda">(tú)</span>' : ''}
+          <div class="meta" style="margin-top:2px">${x.rol === 'admin' ? 'Administrador' : 'Maestro/a'} · alta ${fechaCorta(x.alta)}</div></div></div>
+        ${x.id === yo ? '' : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">
+          <button class="btn-peq sec ajusta" onclick="restablecerClave('${x.id}')">Nueva clave</button>
+          <button class="btn-peq sec ajusta" onclick="cambiarRol('${x.id}','${x.rol === 'admin' ? 'maestro' : 'admin'}')">${x.rol === 'admin' ? 'Quitar admin' : 'Hacer admin'}</button>
+          <button class="btn-peq peligro ajusta" onclick="bajaMaestro('${x.id}')">Dar de baja</button></div>`}
+      </div>`).join('')}`;
+}
+async function cargarAdmin(){
+  try { S.admin = await api('adminInfo', { token: S.sesion.token }, true); }
+  catch(e){ S.admin = { error: /desconocida/.test(e.message) ? 'Falta actualizar el servidor en Google Apps Script.' : e.message }; }
+  const el = $('#admin'); if (el) el.innerHTML = pintarAdmin();
+}
+async function accionAdmin(accion, datos, clave){
+  if (clave && !confirmarDoble(clave)) return null;
+  try { const j = await api(accion, Object.assign({ token: S.sesion.token }, datos), true); await cargarAdmin(); return j; }
+  catch(e){ aviso(e.message, true); return null; }
+}
+async function cambiarCodigoCentro(){ const j = await accionAdmin('cambiarCodigoCentro', {}, 'centro'); if (j) aviso('Nuevo código: ' + j.codigoCentro); }
+async function cambiarRol(id, rol){ const j = await accionAdmin('cambiarRol', { id, rol }, 'rol' + id); if (j) aviso(rol === 'admin' ? 'Ahora es administrador' : 'Ya no es administrador'); }
+async function bajaMaestro(id){ const j = await accionAdmin('bajaMaestro', { id }, 'baja' + id); if (j) aviso(j.baja + ' dado de baja'); }
+async function restablecerClave(id){
+  const j = await accionAdmin('restablecerClave', { id }, 'clave' + id);
+  if (j) abrirHoja(`<h2>Clave provisional</h2>
+    <p class="ayuda" style="font-size:15px">Dásela a <b>${esc(j.nombre)}</b>. Con ella podrá entrar y después cambiarla en «Cambiar mi clave».</p>
+    <div style="text-align:center;margin:22px 0"><span class="codigo" style="font-size:30px;padding:10px 18px">${esc(j.provisional)}</span></div>
+    <p class="ayuda">Apúntala ahora: no se volverá a mostrar.</p>
+    <button class="btn" onclick="cerrarHoja()">Hecho</button>`);
+}
+
+function formClave(){
+  abrirHoja(`<h2>Cambiar mi clave</h2>
+    <label>Clave actual</label><input id="cActual" type="password" autocomplete="current-password">
+    <label>Clave nueva</label><input id="cNueva" type="password" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
+    <label>Repite la clave nueva</label><input id="cNueva2" type="password" autocomplete="new-password">
+    <button class="btn" id="cBtn" onclick="cambiarClave()">Guardar</button>`);
+}
+async function cambiarClave(){
+  if ($('#cNueva').value !== $('#cNueva2').value) { aviso('Las claves nuevas no coinciden', true); return; }
+  const b = $('#cBtn'); b.disabled = true;
+  try { await api('cambiarClave', { token: S.sesion.token, actual: $('#cActual').value, nueva: $('#cNueva').value }, true); cerrarHoja(); aviso('Clave cambiada ✓'); }
+  catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); b.disabled = false; }
 }
 
 function pintarClases(){

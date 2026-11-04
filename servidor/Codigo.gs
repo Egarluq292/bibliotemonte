@@ -40,7 +40,8 @@ const HOJAS = {
 
 const ACCIONES_ESCRITURA = [
   'registrarMaestro', 'entrar', 'reservar', 'anular', 'enviarSugerencia', 'enviarResena',
-  'moderar', 'crearClase', 'desactivarClase'
+  'moderar', 'crearClase', 'desactivarClase',
+  'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro'
 ];
 
 /* ===================== INSTALACIÓN ===================== */
@@ -87,7 +88,8 @@ function responder(fn) {
 function manejar(accion, p) {
   const acciones = {
     estado, publicas, registrarMaestro, entrar, reservar, anular,
-    enviarSugerencia, enviarResena, pendientes, moderar, crearClase, listarClases, desactivarClase
+    enviarSugerencia, enviarResena, pendientes, moderar, crearClase, listarClases, desactivarClase,
+    cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro
   };
   if (!acciones[accion]) throw new Error('Acción desconocida.');
   if (ACCIONES_ESCRITURA.indexOf(accion) === -1) return acciones[accion](p);
@@ -169,6 +171,74 @@ function maestroPorToken(token) {
   const m = token ? filas('Maestros').find(x => x.token === token) : null;
   if (!m) throw new Error('Sesión no válida. Vuelve a entrar.');
   return m;
+}
+
+/** { token, actual, nueva } — cualquier maestro cambia su propia clave. */
+function cambiarClave(p) {
+  const m = maestroPorToken(p.token);
+  if (m.hash !== resumen(m.sal, String(p.actual || ''))) throw new Error('La clave actual no es correcta.');
+  const nueva = String(p.nueva || '');
+  if (nueva.length < 4) throw new Error('La clave nueva debe tener al menos 4 caracteres.');
+  const sal = Utilities.getUuid();
+  escribir('Maestros', m._fila, { sal, hash: resumen(sal, nueva) });
+  return { cambiada: true };
+}
+
+/* ===================== ADMINISTRACIÓN ===================== */
+
+function soloAdmin(token) {
+  const m = maestroPorToken(token);
+  if (m.rol !== 'admin') throw new Error('Solo el administrador puede hacer esto.');
+  return m;
+}
+
+/** { token } → código de centro y lista de maestros. */
+function adminInfo(p) {
+  soloAdmin(p.token);
+  return {
+    codigoCentro: leerConfig().CODIGO_CENTRO,
+    maestros: filas('Maestros').map(m => ({ id: m.id, nombre: m.nombre, rol: m.rol, alta: m.alta }))
+  };
+}
+
+/** { token, id } → clave provisional. Cierra las sesiones abiertas de ese maestro. */
+function restablecerClave(p) {
+  soloAdmin(p.token);
+  const m = filas('Maestros').find(x => x.id === p.id);
+  if (!m) throw new Error('Ese maestro no existe.');
+  const provisional = String(100000 + Math.floor(Math.random() * 900000));
+  const sal = Utilities.getUuid();
+  escribir('Maestros', m._fila, { sal, hash: resumen(sal, provisional), token: Utilities.getUuid() });
+  return { nombre: m.nombre, provisional };
+}
+
+/** { token, id } — no borra sus reservas ya hechas. */
+function bajaMaestro(p) {
+  const admin = soloAdmin(p.token);
+  if (p.id === admin.id) throw new Error('No puedes darte de baja a ti mismo.');
+  const m = filas('Maestros').find(x => x.id === p.id);
+  if (!m) throw new Error('Ese maestro no existe.');
+  hoja('Maestros').deleteRow(m._fila);
+  return { baja: m.nombre };
+}
+
+/** { token, id, rol:'admin'|'maestro' } */
+function cambiarRol(p) {
+  const admin = soloAdmin(p.token);
+  if (['admin', 'maestro'].indexOf(p.rol) === -1) throw new Error('Rol no válido.');
+  if (p.id === admin.id && p.rol !== 'admin') throw new Error('No puedes quitarte a ti mismo el papel de administrador.');
+  const m = filas('Maestros').find(x => x.id === p.id);
+  if (!m) throw new Error('Ese maestro no existe.');
+  escribir('Maestros', m._fila, { rol: p.rol });
+  return { id: m.id, rol: p.rol };
+}
+
+/** { token } → código de centro nuevo. Los maestros ya registrados no se ven afectados. */
+function cambiarCodigoCentro(p) {
+  soloAdmin(p.token);
+  const codigo = generarCodigo();
+  guardarConfig('CODIGO_CENTRO', codigo);
+  return { codigoCentro: codigo };
 }
 
 /* ===================== RESERVAS ===================== */
