@@ -133,6 +133,9 @@ textarea{min-height:120px;resize:vertical}
 .tramo-fila .info b{display:block}
 .tramo-fila .info span{font-size:13px;color:var(--tinta2)}
 .reservar-form{display:flex;gap:8px;margin-top:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{padding:6px 12px;border-radius:999px;background:var(--papel2);color:var(--tinta);font-size:13px;font-weight:600;border:1.5px solid transparent}
+.chip.on{background:var(--tinta);color:#fff}
 .reservar-form input{padding:10px 12px}
 
 /* Barra inferior */
@@ -402,6 +405,7 @@ function abrirDia(f){
       accion = `<button class="btn-peq" onclick="mostrarReserva(${t.n})">Reservar</button>`;
     return `<div class="tramo-fila"><div class="hora">${t.inicio}<small>${t.fin}</small></div>
       <div class="info"><span class="pill libre" style="${pasado ? 'opacity:.5' : ''}"><span class="punto"></span>Libre</span>
+      <div id="ch${t.n}" class="chips" style="display:none"></div>
       <div class="reservar-form" id="rf${t.n}" style="display:none">
         <input id="gr${t.n}" maxlength="40" placeholder="Grupo o motivo (p. ej. 4.º A)">
         <button class="btn-peq" onclick="reservar('${f}',${t.n},this)">OK</button></div></div>
@@ -413,8 +417,18 @@ function abrirDia(f){
 
 function mostrarReserva(n){
   $('#rf' + n).style.display = 'flex'; $('#rb' + n).style.display = 'none';
-  const ult = leer('bib_ultimoGrupo'); if (ult) $('#gr' + n).value = ult;
+  const mias = (S.clases || []).filter(c => c.activa === 'sí').map(c => c.nombre);
+  if (mias.length) {
+    const ch = $('#ch' + n); ch.style.display = 'flex';
+    ch.innerHTML = mias.map(c => `<button class="chip" onclick="elegirClase(${n},this)">${esc(c)}</button>`).join('');
+  } else {
+    const ult = leer('bib_ultimoGrupo'); if (ult) $('#gr' + n).value = ult;
+  }
   $('#gr' + n).focus();
+}
+function elegirClase(n, b){
+  $('#gr' + n).value = b.textContent;
+  document.querySelectorAll('#ch' + n + ' .chip').forEach(x => x.classList.toggle('on', x === b));
 }
 
 async function reservar(f, n, btn){
@@ -584,7 +598,7 @@ function perfilMaestro(){
     </div>
 
     <div class="card"><div class="etq">Códigos de clase</div>
-      <p class="ayuda">Da el código a tu alumnado para que pueda escribir. Si se difunde fuera de clase, desactívalo y crea otro.</p>
+      <p class="ayuda">Crea una por cada grupo o materia que impartas (p. ej. «Lengua 5.º», «Cono 6.º»). Aparecerán al reservar y cada una tiene su código para el alumnado. Si un código se difunde, desactívalo y crea otro.</p>
       <div id="clases">${pintarClases()}</div>
       <div class="reservar-form" style="margin-top:12px"><input id="nClase" maxlength="30" placeholder="Clase (p. ej. 3.º A)">
       <button class="btn-peq" onclick="crearClase()">Crear</button></div>
@@ -686,6 +700,7 @@ async function moderar(tipo, id, decision){
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 pintar();
 refrescar();
+if (esMaestro()) cargarClases();
 setInterval(() => { if (!document.hidden && !$('#hoja').classList.contains('on')) refrescar(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescar(); });
 </script>
