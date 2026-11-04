@@ -218,6 +218,10 @@ textarea{min-height:120px;resize:vertical}
 .rk .pts{font-family:Fraunces,serif;font-size:22px;font-weight:700;color:var(--tinta);min-width:28px;text-align:right;line-height:1}
 .rk .pts small{display:block;font-family:Inter,sans-serif;font-size:10px;font-weight:600;color:var(--suave);margin-top:3px}
 .rk.top:first-child .pts{color:var(--oro)}
+.franja-demo{position:sticky;top:calc(env(safe-area-inset-top) + 6px);z-index:25;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--oro);color:var(--tinta);border-radius:14px;padding:8px 8px 8px 14px;margin-bottom:14px;font-size:14px;box-shadow:0 6px 16px rgba(43,35,80,.18)}
+.franja-demo button{background:var(--tinta);color:#fff;font-weight:700;font-size:13px;padding:7px 14px;border-radius:10px}
+.tag-demo{background:var(--oro);color:var(--tinta);font-weight:700;padding:1px 7px;border-radius:6px}
+.demo-card{border:1.5px dashed var(--oro)}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -239,7 +243,7 @@ textarea{min-height:120px;resize:vertical}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.16';
+const VERSION_APP = '1.17';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -256,7 +260,9 @@ const S = {
   cal: { festivos: [], efemerides: [] },
   frescos: {},          // meses ya actualizados desde el servidor en esta sesión
   cargandoMes: {},   // calendario.json (festivos y efemérides)
-  sesion: leer('bib_sesion'),   // maestro: {token, maestro:{id,nombre,rol}}
+  sesion: leer('bib_sesion'),
+  demo: !!leer('bib_demo'),
+  demoMsgs: leer('bib_demoMsgs') || [],   // maestro: {token, maestro:{id,nombre,rol}}
   alumno: leer('bib_alumno')    // alumno: {codigoClase, alias}
 };
 
@@ -286,7 +292,19 @@ const fechaCorta = s => { if (!s) return ''; const [f] = s.split(' '); const d =
 const mayus = t => t.charAt(0).toUpperCase() + t.slice(1);
 const estrellas = n => '★'.repeat(n) + '☆'.repeat(5 - n);
 const iniciales = n => n.split(' ').filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('');
-const esMaestro = () => !!(S.sesion && S.sesion.token);
+const esMaestro = () => !!(S.sesion && S.sesion.token) && !S.demo;
+const hayMaestro = () => !!(S.sesion && S.sesion.token);
+/* Modo demostración: un maestro usa la app como si fuera alumno. Lo que se envía no sale del dispositivo. */
+const ALUMNO_DEMO = { codigoClase: 'DEMO', alias: 'Ejemplo', clase: 'Demostración' };
+const alumno = () => S.demo ? ALUMNO_DEMO : S.alumno;
+/** Lo publicado en el servidor + los ejemplos publicados en la demostración (solo en este dispositivo). */
+function pub(){
+  const base = S.publicas || { sugerencias: [], resenas: [], clases: [] };
+  const demo = S.demoMsgs.filter(x => x.estado === 'aprobada');
+  return { clases: base.clases || [],
+    sugerencias: demo.filter(x => x._t === 'sugerencia').concat(base.sugerencias),
+    resenas: demo.filter(x => x._t === 'resena').concat(base.resenas) };
+}
 const esAdmin = () => esMaestro() && S.sesion.maestro.rol === 'admin';
 function sumarDias(f, n){ const d = dUTC(f); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
 function ahoraCompleto(){ return S.estado ? S.estado.ahora.fecha + ' ' + S.estado.ahora.hora : ''; }
@@ -412,13 +430,13 @@ function pintar(){
   const app = $('#app');
   if (!S.estado) { app.innerHTML = cabecera() + '<div class="cargando">Cargando la biblioteca…</div>'; return; }
   const vistas = { inicio: prof ? vInicio : vInicioAlumno, calendario: vCalendario, buzon: vBuzon, perfil: vPerfil, guia: vGuia };
-  app.innerHTML = vistas[S.vista]();
+  app.innerHTML = (S.demo ? `<div class="franja-demo"><span>🎒 <b>Demostración</b> · vista de alumno</span><button onclick="salirDemo()">Salir</button></div>` : '') + vistas[S.vista]();
   const fab = document.querySelector('.fab'); if (fab) fab.onclick = nuevoMensaje;
 }
 
 function cabecera(t){
   const hoy = S.estado ? mayus(fechaLarga(S.estado.ahora.fecha)) : '';
-  const quien = esMaestro() ? iniciales(S.sesion.maestro.nombre) : (S.alumno ? iniciales(S.alumno.alias) : '👤');
+  const quien = esMaestro() ? iniciales(S.sesion.maestro.nombre) : (alumno() ? iniciales(alumno().alias) : '👤');
   return `<header class="cab"><div>${t ? '' : `<div class="centro">${NOMBRE_CENTRO}</div>`}<div class="t">${t || 'Biblioteca'}</div><div class="s">${hoy}</div></div>
     <button class="avatar" onclick="ir('perfil')">${esc(quien)}</button></header>`;
 }
@@ -451,9 +469,9 @@ function vInicio(){
     return `<div class="${cls}"><div class="h">${ahora.tramoActual === t.n ? 'Ahora' : t.inicio}</div><div class="q">${r ? esc(r.maestro.split(' ')[0]) : 'Libre'}</div></div>`;
   }).join('') : '';
 
-  const sug = S.publicas ? S.publicas.sugerencias : [];
-  const res = S.publicas ? S.publicas.resenas : [];
-  const nPend = S.pendientes ? S.pendientes.sugerencias.length + S.pendientes.resenas.length : 0;
+  const sug = pub().sugerencias;
+  const res = pub().resenas;
+  const nPend = (S.pendientes ? S.pendientes.sugerencias.length + S.pendientes.resenas.length : 0) + S.demoMsgs.filter(x => x.estado === 'pendiente').length;
 
   const avisoRev = esMaestro() && nPend ? `<button class="card revisar" onclick="irRevisar()">
       <span class="icono" style="background:rgba(255,255,255,.2)">🔔</span>
@@ -487,7 +505,7 @@ function vInicio(){
     <div class="fila">
       <div><div class="etq">Tu perfil</div>
       <div style="font-weight:600;margin-top:4px">${esMaestro() ? esc(S.sesion.maestro.nombre) + (esAdmin() ? ' · administrador' : ' · maestro/a')
-        : S.alumno ? esc(S.alumno.alias) + ' · alumno/a' : 'Elige si eres alumno/a o maestro/a'}</div></div>
+        : alumno() ? esc(alumno().alias) + ' · alumno/a' : 'Elige si eres alumno/a o maestro/a'}</div></div>
       <span class="ir">›</span>
     </div>
   </button>
@@ -504,7 +522,7 @@ const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '
 
 /** Libro del mes: más reseñas y, a igualdad, mejor media. Si no hay este mes, el mejor del curso. */
 function libroDestacado(){
-  const todas = (S.publicas && S.publicas.resenas) || [];
+  const todas = pub().resenas;
   const mes = S.estado.ahora.fecha.slice(0, 7);
   const agrupar = lista => {
     const g = {};
@@ -525,7 +543,7 @@ function libroDestacado(){
 /** Ranking de clases del mes: publicaciones por alumno (solo cuenta lo publicado). */
 function ranking(){
   const mes = S.estado.ahora.fecha.slice(0, 7);
-  const p = S.publicas || { sugerencias: [], resenas: [], clases: [] };
+  const p = pub();
   const tam = {}; (p.clases || []).forEach(c => tam[norm(c.nombre)] = c.alumnos);
   const g = {};
   p.sugerencias.concat(p.resenas)
@@ -541,13 +559,13 @@ function ranking(){
 }
 
 function vInicioAlumno(){
-  const nombre = S.alumno ? S.alumno.alias : '';
+  const nombre = alumno() ? alumno().alias : '';
   const prox = proximos();
   const libro = libroDestacado();
   const rk = ranking();
   const mesNombre = MESES[+S.estado.ahora.fecha.slice(5, 7) - 1];
   const medallas = ['🥇', '🥈', '🥉', '4.º', '5.º'];
-  const res = S.publicas ? S.publicas.resenas.length : 0, sug = S.publicas ? S.publicas.sugerencias.length : 0;
+  const res = pub().resenas.length, sug = pub().sugerencias.length;
 
   return cabecera() + `
   <div class="card hero hero-alumno">
@@ -742,7 +760,7 @@ async function recargarMes(f){
 /* ============ BUZÓN ============ */
 function vBuzon(){
   const tab = S.buzonTab;
-  const lista = S.publicas ? S.publicas[tab] : [];
+  const lista = pub()[tab];
   let html = cabecera('Buzón') + `<div class="seg">
     <button class="${tab === 'sugerencias' ? 'on' : ''}" onclick="S.buzonTab='sugerencias';pintar()">💡 Sugerencias</button>
     <button class="${tab === 'resenas' ? 'on' : ''}" onclick="S.buzonTab='resenas';pintar()">📖 Reseñas</button></div>`;
@@ -756,7 +774,7 @@ function vBuzon(){
 }
 
 function verMensaje(tab, i){
-  const x = S.publicas[tab][i];
+  const x = pub()[tab][i];
   abrirHoja(tab === 'resenas'
     ? `<div class="estrellas" style="font-size:22px">${estrellas(x.valoracion)}</div><h2>${esc(x.libro)}</h2>
        <p style="font-style:italic;color:var(--tinta2)">${esc(x.autorLibro)}</p><div class="linea"></div>
@@ -766,7 +784,7 @@ function verMensaje(tab, i){
 }
 
 function nuevoMensaje(){
-  if (!esMaestro() && !S.alumno) {
+  if (!esMaestro() && !alumno()) {
     abrirHoja(`<h2>¿Quién eres?</h2><p class="ayuda" style="font-size:15px">Para escribir, primero entra como alumno/a (con el código de tu clase) o como maestro/a.</p>
       <button class="btn" onclick="cerrarHoja();ir('perfil')">Ir a mi perfil</button>`);
     return;
@@ -786,11 +804,19 @@ function nuevoMensaje(){
 function ponerEstrellas(n){ ponerEstrellas.n = n; document.querySelectorAll('#fEst button').forEach(b => b.classList.toggle('on', +b.dataset.n <= n)); }
 
 async function enviarMensaje(res){
-  const quien = esMaestro() ? { token: S.sesion.token } : { codigoClase: S.alumno.codigoClase, alias: S.alumno.alias };
+  const quien = esMaestro() ? { token: S.sesion.token } : { codigoClase: alumno().codigoClase, alias: alumno().alias };
   const datos = res
     ? { libro: $('#fLibro').value, autorLibro: $('#fAutor').value.trim() || '-', valoracion: ponerEstrellas.n, texto: $('#fTexto').value }
     : { titulo: $('#fTitulo').value, texto: $('#fTexto').value };
   if (res && !ponerEstrellas.n) { aviso('Elige las estrellas', true); return; }
+  if (S.demo) {
+    const falta = res ? (!datos.libro.trim() ? 'título del libro' : !datos.texto.trim() ? 'reseña' : '') : (!datos.titulo.trim() ? 'título' : !datos.texto.trim() ? 'texto' : '');
+    if (falta) { aviso('Falta el campo «' + falta + '».', true); return; }
+    S.demoMsgs.unshift(Object.assign({ _t: res ? 'resena' : 'sugerencia', id: 'DEMO' + Date.now(), demo: true, estado: 'pendiente', tipoAutor: 'alumno',
+      alias: ALUMNO_DEMO.alias, clase: ALUMNO_DEMO.clase, creada: S.estado.ahora.fecha + ' ' + S.estado.ahora.hora }, datos));
+    guardar('bib_demoMsgs', S.demoMsgs); cerrarHoja();
+    aviso('¡Enviado! Se publicará cuando lo revisen ✓'); pintar(); return;
+  }
   const b = $('#fEnviar'); b.disabled = true; b.textContent = 'Enviando…';
   try {
     const j = await api(res ? 'enviarResena' : 'enviarSugerencia', Object.assign(quien, datos), true);
@@ -807,7 +833,15 @@ function vPerfilBase(){
   html += '';
   if (esMaestro()) return html + `<button class="card guia-acceso" onclick="ir('guia')"><span class="icono">📘</span>
       <span style="flex:1;text-align:left"><b>Guía para el profesorado</b><span class="ayuda" style="display:block;margin-top:2px">Cómo reservar, crear códigos de clase y revisar comentarios</span></span><span class="ir">›</span></button>`
+    + `<div class="card demo-card"><div class="fila" style="justify-content:flex-start;gap:14px"><span class="icono">🎒</span>
+        <div><b>Ver la app como alumno</b><p class="ayuda" style="margin-top:2px">Para explicarla en clase o en el claustro. Lo que escribas como ejemplo no se envía: lo revisas tú mismo aquí y solo se ve en este dispositivo.</p></div></div>
+        <div class="grid2" style="margin-top:14px"><button class="btn" style="margin:0" onclick="entrarDemo()">Empezar demostración</button>
+        <button class="btn sec" style="margin:0" onclick="borrarDemo()"${S.demoMsgs.length ? '' : ' disabled'}>Borrar ejemplos${S.demoMsgs.length ? ' (' + S.demoMsgs.length + ')' : ''}</button></div></div>`
     + perfilMaestro() + `<div style="margin-top:14px">${tarjetaCompartir()}</div><div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
+  if (S.demo) return html + `<div class="card"><div class="etq">Alumno/a · demostración</div><h2 style="margin-top:4px">${esc(ALUMNO_DEMO.alias)}</h2>
+      <p class="ayuda">Código de clase: <span class="codigo">DEMO</span></p>
+      <p class="ayuda">Así ve el Perfil un alumno. Lo que escribas en la demostración no se envía a nadie: solo lo ves tú en este dispositivo.</p>
+      <button class="btn" onclick="salirDemo()">Salir de la demostración</button></div>`;
   if (S.alumno) return html + `<div class="card"><div class="etq">Alumno/a</div><h2 style="margin-top:4px">${esc(S.alumno.alias)}</h2>
       <p class="ayuda">Código de clase: <span class="codigo">${esc(S.alumno.codigoClase)}</span></p>
       <p class="ayuda">Puedes escribir sugerencias y reseñas de libros. Las reservas las hace tu maestro o maestra.</p>
@@ -863,7 +897,7 @@ function salirMaestro(){ S.sesion = null; S.pendientes = null; S.clases = null; 
 function perfilMaestro(){
   const m = S.sesion.maestro;
   const p = S.pendientes || { sugerencias: [], resenas: [] };
-  const pend = [...p.sugerencias.map(x => Object.assign({ _t: 'sugerencia' }, x)), ...p.resenas.map(x => Object.assign({ _t: 'resena' }, x))];
+  const pend = [...S.demoMsgs.filter(x => x.estado === 'pendiente'), ...p.sugerencias.map(x => Object.assign({ _t: 'sugerencia' }, x)), ...p.resenas.map(x => Object.assign({ _t: 'resena' }, x))];
   if (!S.clases) cargarClases();
   return `<div class="card"><div class="etq">${m.rol === 'admin' ? 'Administrador' : 'Maestro/a'}</div>
       <h2 style="margin-top:4px">${esc(m.nombre)}</h2></div>
@@ -873,7 +907,7 @@ function perfilMaestro(){
       ${pend.length ? pend.map(x => `<div style="padding:12px 0;border-bottom:1px solid var(--linea)">
           <b>${esc(x._t === 'resena' ? '📖 ' + x.libro : '💡 ' + x.titulo)}</b>${x._t === 'resena' ? ` <span class="estrellas">${estrellas(+x.valoracion)}</span>` : ''}
           <p style="font-size:14px;color:var(--tinta2);margin-top:4px;white-space:pre-wrap">${esc(x.texto)}</p>
-          <div class="meta" style="margin-top:4px">${esc(x.alias)} · ${esc(x.clase)} · ${fechaCorta(x.creada)}${p.todas && !x.mia ? ' · <b>de otra clase</b>' : ''}</div>
+          <div class="meta" style="margin-top:4px">${esc(x.alias)} · ${esc(x.clase)} · ${fechaCorta(x.creada)}${x.demo ? ' · <span class="tag-demo">ejemplo</span>' : p.todas && !x.mia ? ' · <b>de otra clase</b>' : ''}</div>
           <div style="display:flex;gap:8px;margin-top:10px">
             <button class="btn-peq" onclick="moderar('${x._t}','${x.id}','aprobada')">Publicar</button>
             <button class="btn-peq peligro" onclick="moderar('${x._t}','${x.id}','rechazada')">Descartar</button></div></div>`).join('')
@@ -913,6 +947,19 @@ function verAlumno(codigo, i){
     <button class="btn" onclick="cerrarHoja()">Cerrar</button>`);
 }
 
+function entrarDemo(){
+  S.demo = true; guardar('bib_demo', true); S.vista = 'inicio'; window.scrollTo(0, 0); pintar();
+  aviso('Estás viendo la app como un alumno');
+}
+function salirDemo(){
+  S.demo = false; guardar('bib_demo', null); S.vista = 'perfil'; window.scrollTo(0, 0); pintar();
+  cargarPendientes().then(pintar); if (!S.clases) cargarClases();
+}
+function borrarDemo(){
+  if (!confirmarDoble('demo', 'Toca otra vez para borrar los ejemplos')) return;
+  S.demoMsgs = []; guardar('bib_demoMsgs', null); pintar(); aviso('Ejemplos borrados');
+}
+
 /* ============ GUÍA PARA EL PROFESORADO ============ */
 function vGuia(){
   const paso = (n, titulo, texto, img) => `<section class="card guia-paso">
@@ -941,7 +988,8 @@ function vGuia(){
       <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>`, 'revisar')}
     ${paso(8, 'Lo que ve tu alumnado', `<p>El alumnado tiene una app más sencilla, <b>sin la pestaña de reservas</b>. En su Inicio ve:</p>
       <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes.</li></ul>
-      <p>Solo cuenta lo que tú publicas: <b>descartar</b> un mensaje también lo deja fuera del ranking.</p>`, 'alumnado')}
+      <p>Solo cuenta lo que tú publicas: <b>descartar</b> un mensaje también lo deja fuera del ranking.</p>
+      <p>Para verlo tú mismo o enseñarlo en clase, entra en <b>Perfil → Ver la app como alumno</b>. Puedes escribir reseñas de ejemplo y revisarlas después desde tu perfil: <b>no se envían a nadie</b> y solo se ven en tu dispositivo.</p>`, 'alumnado')}
     ${paso(9, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
       <p>El mensaje <b>no lleva el código de clase</b>: ese lo das tú en el aula.</p>`, 'compartir')}
     <section class="card guia-paso"><h3>¿Problemas?</h3><div class="guia-texto">
@@ -1053,6 +1101,10 @@ async function desactivarClase(codigo){
   catch(e){ aviso(e.message, true); }
 }
 async function moderar(tipo, id, decision){
+  if (String(id).startsWith('DEMO')) {
+    const m = S.demoMsgs.find(x => x.id === id); if (m) m.estado = decision;
+    guardar('bib_demoMsgs', S.demoMsgs); aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado'); pintar(); return;
+  }
   try {
     await api('moderar', { token: S.sesion.token, tipo, id, decision }, true);
     aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado');
