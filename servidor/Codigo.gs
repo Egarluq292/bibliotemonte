@@ -22,6 +22,11 @@
 const TZ = 'Europe/Madrid';
 
 // Festivos y efemérides que se mantienen en GitHub (además de la pestaña Festivos de la hoja).
+// Clases del centro (nombre y número aproximado de alumnos). Cada maestro elige en cuáles da clase.
+const CLASES_CENTRO = [
+  ['Infantil', 15], ['1.er ciclo', 6], ['2.º ciclo', 12], ['3.er ciclo', 6], ['ESO', 9], ['Aula específica', 5]
+];
+
 const URL_CALENDARIO = 'https://egarluq292.github.io/bibliotemonte/calendario.json';
 
 const TRAMOS = [
@@ -34,7 +39,7 @@ const TRAMOS = [
 const HOJAS = {
   Config:      ['clave', 'valor'],
   Maestros:    ['id', 'nombre', 'nombreClave', 'sal', 'hash', 'rol', 'token', 'alta'],
-  Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta', 'alumnos'],
+  Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta', 'alumnos', 'maestros'],
   Reservas:    ['id', 'fecha', 'tramo', 'maestroId', 'maestro', 'grupo', 'creada', 'estado', 'anuladaPor'],
   Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
   Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
@@ -44,7 +49,7 @@ const HOJAS = {
 const ACCIONES_ESCRITURA = [
   'registrarMaestro', 'entrar', 'reservar', 'anular', 'enviarSugerencia', 'enviarResena',
   'moderar', 'crearClase', 'desactivarClase',
-  'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro', 'alumnosClase', 'eliminarClase', 'retirar'
+  'cambiarClave', 'restablecerClave', 'bajaMaestro', 'cambiarRol', 'cambiarCodigoCentro', 'alumnosClase', 'eliminarClase', 'retirar', 'misClases', 'cambiarCodigoClase'
 ];
 
 /* ===================== CALENDARIO ESCOLAR ===================== */
@@ -126,10 +131,12 @@ function responder(fn) {
 function manejar(accion, p) {
   const acciones = {
     estado, publicas, registrarMaestro, entrar, reservar, anular,
-    enviarSugerencia, enviarResena, pendientes, moderar, crearClase, listarClases, desactivarClase,
-    cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro, alumnosClase, eliminarClase, retirar
+    enviarSugerencia, enviarResena, pendientes, moderar, listarClases,
+    cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro, alumnosClase, eliminarClase, retirar,
+    misClases, cambiarCodigoClase
   };
   if (!acciones[accion]) throw new Error('Acción desconocida.');
+  prepararClases();
   if (ACCIONES_ESCRITURA.indexOf(accion) === -1) return acciones[accion](p);
 
   const candado = LockService.getScriptLock();
@@ -364,15 +371,71 @@ function autor(p) {
   const n = Number(cache.get('envios_' + codigo) || 0);
   if (n >= 20) throw new Error('Tu clase ha enviado muchos mensajes seguidos. Espera un poco.');
   cache.put('envios_' + codigo, String(n + 1), 600);
-  return { tipo: 'alumno', alias: texto(p.alias, 20, 'nombre'), clase: clase.nombre, codigo: clase.codigo, maestroId: clase.maestroId };
+  return { tipo: 'alumno', alias: texto(p.alias, 20, 'nombre'), clase: clase.nombre, codigo: clase.codigo, maestroId: '' };
+}
+
+/* ===================== CLASES DEL CENTRO ===================== */
+
+/** Crea las clases fijas que falten y desactiva las antiguas creadas a mano. Se ejecuta sola (una vez cada 6 h). */
+function prepararClases() {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('clases_v2')) return;
+  const candado = LockService.getScriptLock();
+  if (!candado.tryLock(15000)) return;
+  try {
+    const nombres = CLASES_CENTRO.map(c => c[0]);
+    let clases = filas('Clases');
+    clases.filter(c => c.activa === 'sí' && nombres.indexOf(c.nombre) === -1).forEach(c => escribir('Clases', c._fila, { activa: 'no' }));
+    clases = filas('Clases');
+    const codigos = clases.map(c => c.codigo);
+    CLASES_CENTRO.forEach(([nombre, alumnos]) => {
+      if (clases.some(c => c.nombre === nombre && c.activa === 'sí')) return;
+      let codigo; do { codigo = generarCodigo(); } while (codigos.indexOf(codigo) !== -1);
+      codigos.push(codigo);
+      anadir('Clases', { codigo, nombre, maestroId: '', activa: 'sí', alta: ahoraLocal().completo, alumnos: String(alumnos), maestros: '' });
+    });
+    SpreadsheetApp.flush();
+    cache.put('clases_v2', '1', 21600);
+  } finally { candado.releaseLock(); }
+}
+
+const listaMaestros = c => String(c.maestros || '').split(',').filter(Boolean);
+const clasesDe = m => filas('Clases').filter(c => c.activa === 'sí' && listaMaestros(c).indexOf(m.id) !== -1).map(c => c.nombre);
+/** ¿Puede este maestro gestionar lo escrito en esa clase? */
+function esDeSusClases(m, x, mias) {
+  return m.rol === 'admin' || x.maestroClase === m.id || (x.clase && mias.indexOf(x.clase) !== -1);
+}
+
+/** { token, clases:[nombres] } — las clases en las que da clase este maestro. */
+function misClases(p) {
+  const m = maestroPorToken(p.token);
+  const elegidas = Array.isArray(p.clases) ? p.clases : [];
+  filas('Clases').filter(c => c.activa === 'sí').forEach(c => {
+    const lista = listaMaestros(c).filter(id => id !== m.id);
+    if (elegidas.indexOf(c.nombre) !== -1) lista.push(m.id);
+    escribir('Clases', c._fila, { maestros: lista.join(',') });
+  });
+  return { clases: elegidas };
+}
+
+/** { token, nombre } — da un código nuevo a una clase (el anterior deja de funcionar). */
+function cambiarCodigoClase(p) {
+  const m = maestroPorToken(p.token);
+  const c = filas('Clases').find(x => x.nombre === p.nombre && x.activa === 'sí');
+  if (!c || (m.rol !== 'admin' && listaMaestros(c).indexOf(m.id) === -1)) throw new Error('No puedes cambiar el código de esa clase.');
+  const codigos = filas('Clases').map(x => x.codigo);
+  let codigo; do { codigo = generarCodigo(); } while (codigos.indexOf(codigo) !== -1);
+  escribir('Clases', c._fila, { codigo });
+  return { nombre: c.nombre, codigo };
 }
 
 /** { token } → lo que espera revisión: cada maestro, lo de sus clases; el administrador, todo. */
 function pendientes(p) {
   const m = maestroPorToken(p.token);
+  const mias = clasesDe(m);
   const pend = (h) => filas(h)
-    .filter(x => x.estado === 'pendiente' && (m.rol === 'admin' || x.maestroClase === m.id))
-    .map(x => { const o = Object.assign({}, x); delete o._fila; o.mia = x.maestroClase === m.id; return o; });
+    .filter(x => x.estado === 'pendiente' && esDeSusClases(m, x, mias))
+    .map(x => { const o = Object.assign({}, x); delete o._fila; o.mia = x.maestroClase === m.id || mias.indexOf(x.clase) !== -1; return o; });
   return { sugerencias: pend('Sugerencias'), resenas: pend('Resenas'), todas: m.rol === 'admin' };
 }
 
@@ -383,25 +446,12 @@ function moderar(p) {
   if (['aprobada', 'rechazada'].indexOf(p.decision) === -1) throw new Error('Decisión no válida.');
   const x = filas(hoja).find(f => f.id === p.id);
   if (!x) throw new Error('No encontrado.');
-  if (m.rol !== 'admin' && x.maestroClase !== m.id) throw new Error('Solo puedes revisar los comentarios de tus clases.');
+  if (!esDeSusClases(m, x, clasesDe(m))) throw new Error('Solo puedes revisar los comentarios de tus clases.');
   if (x.estado !== 'pendiente') throw new Error('Otro maestro ya lo ha revisado.');
   escribir(hoja, x._fila, { estado: p.decision, moderadaPor: m.nombre });
   return { id: x.id, estado: p.decision };
 }
 
-/* ===================== CÓDIGOS DE CLASE ===================== */
-
-/** { token, nombre:'3.º A' } → código que el maestro da a su alumnado. */
-function crearClase(p) {
-  const m = maestroPorToken(p.token);
-  const existentes = filas('Clases').map(c => c.codigo);
-  let codigo;
-  do { codigo = generarCodigo(); } while (existentes.indexOf(codigo) !== -1);
-  anadir('Clases', { codigo, nombre: texto(p.nombre, 30, 'nombre de la clase'), maestroId: m.id, activa: 'sí', alta: ahoraLocal().completo, alumnos: numAlumnos(p.alumnos) });
-  return { codigo };
-}
-
-/** Clases del maestro (todas, si es administrador) con el alumnado que ha participado en cada una. */
 function numAlumnos(v) {
   const n = Math.round(Number(v));
   if (!(n >= 1 && n <= 60)) throw new Error('Indica cuántos alumnos tiene la clase (entre 1 y 60).');
@@ -412,40 +462,51 @@ function numAlumnos(v) {
 function alumnosClase(p) {
   const m = maestroPorToken(p.token);
   const c = filas('Clases').find(x => x.codigo === p.codigo);
-  if (!c || (c.maestroId !== m.id && m.rol !== 'admin')) throw new Error('No puedes modificar esa clase.');
+  if (!c || (m.rol !== 'admin' && listaMaestros(c).indexOf(m.id) === -1)) throw new Error('No puedes modificar esa clase.');
   escribir('Clases', c._fila, { alumnos: numAlumnos(p.alumnos) });
   return { codigo: c.codigo, alumnos: Number(p.alumnos) };
 }
 
+/** Las clases del centro (y, para el administrador, los códigos antiguos) con el alumnado que ha participado. */
 function listarClases(p) {
   const m = maestroPorToken(p.token);
-  const envios = filas('Sugerencias').concat(filas('Resenas')).filter(x => x.tipoAutor === 'alumno' && x.codigoClase);
+  const envios = filas('Sugerencias').concat(filas('Resenas')).filter(x => x.tipoAutor === 'alumno');
+  const participantes = (filtro) => {
+    const porAlumno = {};
+    envios.filter(filtro).forEach(x => {
+      const k = normalizar(x.alias);
+      const a = porAlumno[k] || (porAlumno[k] = { alias: x.alias, envios: 0, publicados: 0, ultimo: '', mensajes: [] });
+      a.envios++;
+      a.mensajes.push(x.libro !== undefined
+        ? { tipo: 'resena', libro: x.libro, valoracion: x.valoracion, texto: x.texto, estado: x.estado, creada: x.creada }
+        : { tipo: 'sugerencia', titulo: x.titulo, texto: x.texto, estado: x.estado, creada: x.creada });
+      if (x.estado === 'aprobada') a.publicados++;
+      if (x.creada > a.ultimo) a.ultimo = x.creada;
+    });
+    const lista = Object.keys(porAlumno).map(k => porAlumno[k]).sort((a, b) => b.envios - a.envios);
+    lista.forEach(a => a.mensajes.sort((x, y) => x.creada < y.creada ? 1 : -1));
+    return lista;
+  };
+  const todas = filas('Clases');
+  const activas = CLASES_CENTRO.map(([nombre]) => todas.find(c => c.nombre === nombre && c.activa === 'sí')).filter(Boolean);
+  const antiguas = m.rol === 'admin' ? todas.filter(c => c.activa !== 'sí') : [];
   return {
-    clases: filas('Clases').filter(c => m.rol === 'admin' || c.maestroId === m.id).map(c => {
-      const porAlumno = {};
-      envios.filter(x => x.codigoClase === c.codigo).forEach(x => {
-        const k = normalizar(x.alias);
-        const a = porAlumno[k] || (porAlumno[k] = { alias: x.alias, envios: 0, publicados: 0, ultimo: '', mensajes: [] });
-        a.envios++;
-        a.mensajes.push(x.libro !== undefined
-          ? { tipo: 'resena', libro: x.libro, valoracion: x.valoracion, texto: x.texto, estado: x.estado, creada: x.creada }
-          : { tipo: 'sugerencia', titulo: x.titulo, texto: x.texto, estado: x.estado, creada: x.creada });
-        if (x.estado === 'aprobada') a.publicados++;
-        if (x.creada > a.ultimo) a.ultimo = x.creada;
-      });
-      const participantes = Object.keys(porAlumno).map(k => porAlumno[k]).sort((a, b) => b.envios - a.envios);
-      participantes.forEach(a => a.mensajes.sort((x, y) => x.creada < y.creada ? 1 : -1));
-      return { codigo: c.codigo, nombre: c.nombre, activa: c.activa, mia: c.maestroId === m.id, alumnos: Number(c.alumnos) || 0, participantes };
-    })
+    clases: activas.map(c => {
+      const mia = listaMaestros(c).indexOf(m.id) !== -1;
+      const ve = mia || m.rol === 'admin';
+      return { nombre: c.nombre, codigo: ve ? c.codigo : '', activa: 'sí', mia, alumnos: Number(c.alumnos) || 0,
+        participantes: ve ? participantes(x => x.clase === c.nombre && (!x.codigoClase || x.codigoClase === c.codigo || activas.every(o => o.codigo !== x.codigoClase))) : [] };
+    }),
+    antiguas: antiguas.map(c => ({ nombre: c.nombre, codigo: c.codigo, activa: 'no', participantes: participantes(x => x.codigoClase === c.codigo) }))
   };
 }
 
-/** { token, codigo } — borra una clase desactivada y todo lo que se escribió con su código. */
+/** { token, codigo } — borra un código antiguo (desactivado) y todo lo que se escribió con él. */
 function eliminarClase(p) {
   const m = maestroPorToken(p.token);
   const c = filas('Clases').find(x => x.codigo === p.codigo);
   if (!c || (c.maestroId !== m.id && m.rol !== 'admin')) throw new Error('No puedes eliminar esa clase.');
-  if (c.activa === 'sí') throw new Error('Desactiva primero el código.');
+  if (c.activa === 'sí') throw new Error('Solo se pueden eliminar códigos desactivados.');
   let borrados = 0;
   ['Sugerencias', 'Resenas'].forEach(h => {
     filas(h).filter(x => x.codigoClase === c.codigo).map(x => x._fila).sort((a, b) => b - a)
@@ -461,19 +522,10 @@ function retirar(p) {
   const h = p.tipo === 'resena' ? 'Resenas' : 'Sugerencias';
   const x = filas(h).find(f => f.id === p.id);
   if (!x) throw new Error('No encontrado.');
-  const suyo = x.maestroClase === m.id || (x.tipoAutor === 'maestro' && x.alias === m.nombre);
-  if (m.rol !== 'admin' && !suyo) throw new Error('Solo puedes retirar lo de tus clases.');
+  const suyo = esDeSusClases(m, x, clasesDe(m)) || (x.tipoAutor === 'maestro' && x.alias === m.nombre);
+  if (!suyo) throw new Error('Solo puedes retirar lo de tus clases.');
   escribir(h, x._fila, { estado: 'rechazada', moderadaPor: m.nombre + ' (retirado)' });
   return { id: x.id };
-}
-
-/** Si un código se filtra, se desactiva y se crea otro. */
-function desactivarClase(p) {
-  const m = maestroPorToken(p.token);
-  const c = filas('Clases').find(x => x.codigo === p.codigo);
-  if (!c || (c.maestroId !== m.id && m.rol !== 'admin')) throw new Error('No puedes modificar esa clase.');
-  escribir('Clases', c._fila, { activa: 'no' });
-  return { codigo: c.codigo };
 }
 
 /* ===================== UTILIDADES ===================== */
