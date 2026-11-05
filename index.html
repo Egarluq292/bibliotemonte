@@ -227,6 +227,10 @@ textarea{min-height:120px;resize:vertical}
 .demo-card{border:1.5px dashed var(--oro)}
 .ejemplo-card{border:1.5px dashed var(--cielo)}
 sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
+.enlace{display:block;margin:10px auto 0;color:var(--tinta);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.equipo{margin-top:12px;padding:12px 14px;border-radius:16px;background:var(--papel);border:1.5px solid var(--linea)}
+.equipo.ganador{background:#FBF3DC;border-color:#F0DDA4}
+.filas-emoji{display:grid;grid-template-columns:repeat(6,30px);gap:2px 4px;font-size:22px;margin-top:8px;line-height:1.2}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -248,7 +252,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.20';
+const VERSION_APP = '1.21';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -639,9 +643,27 @@ function tarjetaRanking(rk, mesNombre, profesorado){
         <span class="med">${medallas[i] || (i + 1) + '.º'}</span>
         <span class="nom"><b>${cl(r.nombre)}</b><small>${r.n === 1 ? '1 publicación' : r.n + ' publicaciones'} · ${r.alumnos} alumnos</small></span>
         <span class="pts">${r.media.toFixed(2).replace('.', ',')}<small>por alumno</small></span></div>`).join('')}</div>
-      <p class="ayuda" style="margin-top:10px">Gana la clase con más reseñas y sugerencias publicadas por alumno este mes, así las clases pequeñas compiten igual.${profesorado ? ' El alumnado ve los 5 primeros. Las clases sin número de alumnos no aparecen.' : ''}</p>`
-    : `<p class="ayuda" style="margin-top:8px">Este mes aún no hay clases en el ranking. Cuentan las reseñas y sugerencias publicadas de cada clase.</p>`}
+      <p class="ayuda" style="margin-top:10px">Gana la clase con más reseñas y sugerencias publicadas por alumno este mes, así las clases pequeñas compiten igual.${profesorado ? ' El alumnado ve los 5 primeros. Las clases sin número de alumnos no aparecen.' : ''}</p>
+      <button class="enlace" onclick="comoSeCalcula()">🌰 ¿Cómo se calcula?</button>`
+    : `<p class="ayuda" style="margin-top:8px">Este mes aún no hay clases en el ranking. Cuentan las reseñas y sugerencias publicadas de cada clase.</p>
+      <button class="enlace" onclick="comoSeCalcula()">🌰 ¿Cómo se calcula?</button>`}
   </div>`;
+}
+
+function comoSeCalcula(){
+  const fila = (e, n) => Array.from({ length: n }, () => `<span>${e}</span>`).join('');
+  const castanas = n => fila('🌰', n), ninos = n => fila('🧒', n);
+  abrirHoja(`<h2>¿Cómo se calcula el ranking?</h2>
+    <p style="margin-top:8px;color:var(--tinta2)">Imagina dos equipos recogiendo castañas:</p>
+    <div class="equipo"><div class="fila"><b>Equipo grande</b><span class="ayuda">12 niños · 8 castañas</span></div>
+      <div class="filas-emoji">${ninos(12)}</div><div class="filas-emoji">${castanas(8)}</div>
+      <p class="ayuda">Toca a <b>menos de una castaña</b> por niño.</p></div>
+    <div class="equipo ganador"><div class="fila"><b>Equipo pequeño 🏆</b><span class="ayuda">6 niños · 6 castañas</span></div>
+      <div class="filas-emoji">${ninos(6)}</div><div class="filas-emoji">${castanas(6)}</div>
+      <p class="ayuda">Toca a <b>una castaña</b> por niño.</p></div>
+    <p style="margin-top:14px">¿Quién ha trabajado mejor? <b>¡El pequeño!</b> En la biblioteca pasa igual: no gana la clase más grande, sino la que más lee <b>para los niños que son</b>. Así, cualquier clase puede ganar.</p>
+    <p class="ayuda" style="margin-top:12px">El número de la derecha es lo que «toca» a cada alumno: 1,00 es una publicación por cada alumno; 0,50, una por cada dos. Solo cuentan las reseñas y sugerencias publicadas, y el ranking empieza de cero cada mes.</p>
+    <button class="btn" onclick="cerrarHoja()">¡Entendido!</button>`);
 }
 
 function vInicioAlumno(){
@@ -1057,7 +1079,7 @@ function vGuia(){
       <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>
       <p>Si algo ya publicado no debería estar, ábrelo en el <b>Buzón</b> y pulsa <b>Retirar publicación</b>.</p>`, 'revisar')}
     ${paso(8, 'Lo que ve tu alumnado', `<p>El alumnado tiene una app más sencilla, <b>sin la pestaña de reservas</b>. En su Inicio ve:</p>
-      <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes.</li></ul>
+      <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes. Debajo del ranking, <b>«¿Cómo se calcula?»</b> lo explica con un ejemplo de castañas.</li></ul>
       <p>Solo cuenta lo que tú publicas: <b>descartar</b> un mensaje también lo deja fuera del ranking.</p>
       <p>Para verlo tú mismo o enseñarlo en clase, entra en <b>Perfil → Ver la app como alumno</b>. Puedes escribir reseñas de ejemplo y revisarlas después desde tu perfil: <b>no se envían a nadie</b> y solo se ven en tu dispositivo.</p>`, 'alumnado')}
     ${paso(9, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
