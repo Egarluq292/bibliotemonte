@@ -252,7 +252,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.22';
+const VERSION_APP = '1.23';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -363,8 +363,11 @@ function datosEjemplo(){
   ];
 }
 function alternarEjemplo(){
-  S.ejemplo = !S.ejemplo; guardar('bib_ejemplo', S.ejemplo || null); pintar();
-  aviso(S.ejemplo ? 'Datos de ejemplo activados en este dispositivo' : 'Datos de ejemplo desactivados');
+  S.ejemplo = !S.ejemplo; guardar('bib_ejemplo', S.ejemplo || null);
+  // Al terminar la presentación, se limpia también lo escrito en la demostración de alumno.
+  if (!S.ejemplo) { S.demoMsgs = []; guardar('bib_demoMsgs', null); }
+  pintar();
+  aviso(S.ejemplo ? 'Datos de ejemplo activados en este dispositivo' : 'Datos de ejemplo desactivados: todo vuelve a la normalidad');
 }
 const esAdmin = () => esMaestro() && S.sesion.maestro.rol === 'admin';
 function sumarDias(f, n){ const d = dUTC(f); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
@@ -925,12 +928,11 @@ function vPerfilBase(){
   if (esMaestro()) return html + `<button class="card guia-acceso" onclick="ir('guia')"><span class="icono">📘</span>
       <span style="flex:1;text-align:left"><b>Guía para el profesorado</b><span class="ayuda" style="display:block;margin-top:2px">Cómo reservar, crear códigos de clase y revisar comentarios</span></span><span class="ir">›</span></button>`
     + (esAdmin() ? `<div class="card ejemplo-card"><div class="fila" style="justify-content:flex-start;gap:14px"><span class="icono">🧪</span>
-        <div><b>Datos de ejemplo para presentaciones</b><p class="ayuda" style="margin-top:2px">Rellena el ranking, el libro del mes y el buzón con 30 reseñas y sugerencias inventadas. <b>Solo se ven en este dispositivo</b> y no se guardan en el servidor.</p></div></div>
+        <div><b>Datos de ejemplo para presentaciones</b><p class="ayuda" style="margin-top:2px">Rellena el ranking, el libro del mes y el buzón con 30 reseñas y sugerencias inventadas. <b>Solo se ven en este dispositivo</b> y no se guardan en el servidor. Al desactivarlos se borra también lo que hayas escrito en la demostración.</p></div></div>
         <button class="btn ${S.ejemplo ? 'peligro' : ''}" onclick="alternarEjemplo()">${S.ejemplo ? 'Desactivar datos de ejemplo' : 'Activar datos de ejemplo'}</button></div>` : '')
     + `<div class="card demo-card"><div class="fila" style="justify-content:flex-start;gap:14px"><span class="icono">🎒</span>
-        <div><b>Ver la app como alumno</b><p class="ayuda" style="margin-top:2px">Para explicarla en clase o en el claustro. Lo que escribas como ejemplo no se envía: lo revisas tú mismo aquí y solo se ve en este dispositivo.</p></div></div>
-        <div class="grid2" style="margin-top:14px"><button class="btn" style="margin:0" onclick="entrarDemo()">Empezar demostración</button>
-        <button class="btn sec" style="margin:0" onclick="borrarDemo()"${S.demoMsgs.length ? '' : ' disabled'}>Borrar ejemplos${S.demoMsgs.length ? ' (' + S.demoMsgs.length + ')' : ''}</button></div></div>`
+        <div><b>Ver la app como alumno</b><p class="ayuda" style="margin-top:2px">Para explicarla en clase o en el claustro. Lo que escribas como ejemplo no se envía: lo revisas tú mismo aquí y solo se ve en este dispositivo.${esAdmin() ? ' Se borra al desactivar los datos de ejemplo.' : ''}</p></div></div>
+        <button class="btn" onclick="entrarDemo()">Empezar demostración</button></div>`
     + perfilMaestro() + `<div style="margin-top:14px">${tarjetaCompartir()}</div><div style="margin-top:14px">${tarjetaInstalar(false)}</div>`;
   if (S.demo) return html + `<div class="card"><div class="etq">Alumno/a · demostración</div><h2 style="margin-top:4px">${esc(ALUMNO_DEMO.alias)}</h2>
       <p class="ayuda">Código de clase: <span class="codigo">DEMO</span></p>
