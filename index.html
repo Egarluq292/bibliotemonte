@@ -252,7 +252,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.21';
+const VERSION_APP = '1.22';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -265,7 +265,7 @@ const S = {
   mesVista: null,
   publicas: null,
   pendientes: null,
-  buzonTab: 'sugerencias',
+  buzonTab: 'resenas',
   cal: { festivos: [], efemerides: [] },
   frescos: {},          // meses ya actualizados desde el servidor en esta sesión
   cargandoMes: {},   // calendario.json (festivos y efemérides)
@@ -550,15 +550,15 @@ function vInicio(){
   </button>
 
   <div class="grid2" style="margin-top:14px">
-    <button class="card mini" onclick="S.buzonTab='sugerencias';ir('buzon')">
-      <div class="fila"><span class="icono">💡</span></div>
-      <div><div class="n">${sug.length}</div><div class="etq" style="margin-top:4px">Sugerencias</div>
-      <div class="sub">${sug[0] ? esc(sug[0].titulo) : 'Aún no hay ninguna'}</div></div>
-    </button>
     <button class="card mini" onclick="S.buzonTab='resenas';ir('buzon')">
       <div class="fila"><span class="icono">📖</span></div>
       <div><div class="n">${res.length}</div><div class="etq" style="margin-top:4px">Reseñas</div>
       <div class="sub">${res[0] ? esc(res[0].libro) : 'Aún no hay ninguna'}</div></div>
+    </button>
+    <button class="card mini" onclick="S.buzonTab='sugerencias';ir('buzon')">
+      <div class="fila"><span class="icono">💡</span></div>
+      <div><div class="n">${sug.length}</div><div class="etq" style="margin-top:4px">Sugerencias</div>
+      <div class="sub">${sug[0] ? esc(sug[0].titulo) : 'Aún no hay ninguna'}</div></div>
     </button>
   </div>
 
@@ -850,8 +850,8 @@ function vBuzon(){
   const tab = S.buzonTab;
   const lista = pub()[tab];
   let html = cabecera('Buzón') + `<div class="seg">
-    <button class="${tab === 'sugerencias' ? 'on' : ''}" onclick="S.buzonTab='sugerencias';pintar()">💡 Sugerencias</button>
-    <button class="${tab === 'resenas' ? 'on' : ''}" onclick="S.buzonTab='resenas';pintar()">📖 Reseñas</button></div>`;
+    <button class="${tab === 'resenas' ? 'on' : ''}" onclick="S.buzonTab='resenas';pintar()">📖 Reseñas</button>
+    <button class="${tab === 'sugerencias' ? 'on' : ''}" onclick="S.buzonTab='sugerencias';pintar()">💡 Sugerencias</button></div>`;
   if (!lista.length) html += `<div class="vacio-msg">${tab === 'sugerencias' ? 'Todavía no hay sugerencias.<br>¡Sé el primero en proponer algo!' : 'Todavía no hay reseñas.<br>¿Qué libro te ha gustado?'}</div>`;
   else html += lista.map((x, i) => `<button class="card item" onclick="verMensaje('${tab}',${i})">
       ${tab === 'resenas' ? `<div class="estrellas">${estrellas(x.valoracion)}</div><h3>${esc(x.libro)}</h3>${x.autorLibro && x.autorLibro !== '-' ? `<p style="margin-bottom:6px;font-style:italic">${esc(x.autorLibro)}</p>` : ''}` : `<h3>${esc(x.titulo)}</h3>`}
