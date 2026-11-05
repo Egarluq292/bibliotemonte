@@ -231,6 +231,16 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 .equipo{margin-top:12px;padding:12px 14px;border-radius:16px;background:var(--papel);border:1.5px solid var(--linea)}
 .equipo.ganador{background:#FBF3DC;border-color:#F0DDA4}
 .filas-emoji{display:grid;grid-template-columns:repeat(6,30px);gap:2px 4px;font-size:22px;margin-top:8px;line-height:1.2}
+.conf-velo{position:fixed;inset:0;z-index:70;background:rgba(25,18,48,.55);display:grid;place-items:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .15s}
+.conf-velo.on{opacity:1;pointer-events:auto}
+.conf{background:var(--blanco);border-radius:24px;padding:24px 20px 20px;width:min(380px,100%);text-align:center;box-shadow:0 20px 50px rgba(25,18,48,.35);transform:scale(.95);transition:transform .15s}
+.conf-velo.on .conf{transform:none}
+.conf-icono{font-size:38px;line-height:1}
+.conf h2{font-size:22px;margin-top:10px}
+.conf p{color:var(--tinta2);margin-top:8px;font-size:15px}
+.conf-botones{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.conf-botones .btn{margin:0;padding:15px 10px}
+.btn.rojo{background:var(--teja);color:#fff}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -247,12 +257,17 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 <div class="velo" id="velo"></div>
 <div class="hoja" id="hoja"><div class="asa"></div><div id="hojaCont"></div></div>
 <div class="aviso" id="aviso"></div>
+<div class="conf-velo" id="confVelo"><div class="conf" role="dialog" aria-modal="true">
+  <div class="conf-icono" id="confIcono">⚠️</div>
+  <h2 id="confTitulo"></h2><p id="confTexto"></p>
+  <div class="conf-botones"><button class="btn sec" id="confNo">Cancelar</button><button class="btn" id="confSi">Confirmar</button></div>
+</div></div>
 
 <script>
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.24';
+const VERSION_APP = '1.25';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -827,15 +842,25 @@ async function reservar(f, n, btn){
 }
 
 async function anular(id, f){
-  if (!confirmarDoble(id, 'Toca otra vez para anular la reserva')) return;
+  const r = (S.meses[f.slice(0,7)] || []).find(x => x.id === id);
+  const t = r ? S.estado.tramos[r.tramo - 1] : null;
+  if (!(await confirmar({ titulo: '¿Anular la reserva?', texto: r ? `${mayus(fechaLarga(f))}, de ${t.inicio} a ${t.fin}<br><b>${cl(r.grupo)}</b>` : '', boton: 'Sí, anular', icono: '📅' }))) return;
   try { await api('anular', { token: S.sesion.token, id }, true); aviso('Reserva anulada'); }
   catch(e){ aviso(e.message, true); }
   await recargarMes(f); abrirDia(f);
 }
 // Doble pulsación en lugar de confirm() para no bloquear la app.
-function confirmarDoble(id, msg){
-  if (confirmarDoble.id === id && Date.now() - confirmarDoble.t < 4000) return true;
-  confirmarDoble.id = id; confirmarDoble.t = Date.now(); aviso(msg || 'Toca otra vez para confirmar'); return false;
+/** Ventana de confirmación con dos botones claros. Devuelve true si se confirma. */
+function confirmar({ titulo, texto = '', boton = 'Confirmar', icono = '⚠️', peligro = true }){
+  return new Promise(resolver => {
+    $('#confIcono').textContent = icono; $('#confTitulo').innerHTML = titulo; $('#confTexto').innerHTML = texto;
+    const si = $('#confSi'), no = $('#confNo'), velo = $('#confVelo');
+    si.textContent = boton; si.className = 'btn' + (peligro ? ' rojo' : '');
+    const cerrar = r => { velo.classList.remove('on'); si.onclick = no.onclick = velo.onclick = null; resolver(r); };
+    si.onclick = () => cerrar(true); no.onclick = () => cerrar(false);
+    velo.onclick = e => { if (e.target === velo) cerrar(false); };
+    velo.classList.add('on');
+  });
 }
 
 async function recargarMes(f){
@@ -1045,8 +1070,8 @@ function salirDemo(){
   S.demo = false; guardar('bib_demo', null); S.vista = 'perfil'; window.scrollTo(0, 0); pintar();
   cargarPendientes().then(pintar); if (!S.clases) cargarClases();
 }
-function borrarDemo(){
-  if (!confirmarDoble('demo', 'Toca otra vez para borrar los ejemplos')) return;
+async function borrarDemo(){
+  if (!(await confirmar({ titulo: '¿Borrar los ejemplos?', texto: 'Se borrará lo que has escrito en la demostración de alumno.', boton: 'Sí, borrar', icono: '🧹' }))) return;
   S.demoMsgs = []; guardar('bib_demoMsgs', null); pintar(); aviso('Ejemplos borrados');
 }
 
@@ -1071,7 +1096,7 @@ function vGuia(){
       <p>Cada día tiene <b>cuatro barras</b>, una por sesión (9:30 · 10:30 · 12:00 · 13:00): <b style="color:#2F8550">verde</b> = libre, <b style="color:#B03A86">magenta</b> = reservada. Para cambiar de mes, <b>desliza el dedo</b> a los lados o usa ‹ ›.</p>`, 'calendario')}
     ${paso(4, 'Reservar', `<ol><li>Toca el día.</li><li>En una sesión libre, pulsa <b>Reservar</b>.</li><li>Elige tu clase en los botones (o escribe el motivo).</li><li>Pulsa <b>OK</b>.</li></ol>
       <p>Si otra persona la reserva un instante antes, la app te avisa: <b>nunca habrá dos reservas a la misma hora</b>.</p>`, 'reservar')}
-    ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. Para evitar errores, hay que <b>tocarlo dos veces</b>: la app te lo indica.</p>
+    ${paso(5, 'Anular una reserva', `<p>Abre el día y pulsa <b>Anular</b> en tu reserva. La app te pedirá que lo confirmes en una ventana con dos botones: <b>Cancelar</b> o <b>Sí, anular</b>.</p>
       <p>Solo puedes anular <b>tus</b> reservas. Si necesitas una hora reservada por otra persona, habla con ella.</p>`, 'anular')}
     ${paso(6, 'Elegir tus clases y dar el código', `<p>En <b>Perfil → Mis clases</b>, toca las clases en las que das clase (Infantil, 1.<sup>er</sup> ciclo, 2.º ciclo, 3.<sup>er</sup> ciclo, ESO, Aula específica). Quedan marcadas con ✓.</p>
       <ul><li>Aparecerán como botones al <b>reservar</b> y recibirás para revisar lo que escriba su alumnado.</li><li>Cada clase tiene <b>un código</b> para todo su alumnado. Dalo <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre e inicial, <b>sin apellidos</b> (p. ej. «Lucía M.»).</li><li>Debajo de cada clase verás <b>qué alumnos han participado</b>. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>El número de alumnos se corrige tocando <b>«✏️»</b>; el ranking lo usa para comparar clases.</li><li>Si el código se difunde fuera de clase, pulsa <b>Cambiar código</b>: el anterior deja de funcionar.</li></ul>`, 'clases')}
@@ -1116,16 +1141,17 @@ async function cargarAdmin(){
   catch(e){ S.admin = { error: /desconocida/.test(e.message) ? 'Falta actualizar el servidor en Google Apps Script.' : e.message }; }
   const el = $('#admin'); if (el) el.innerHTML = pintarAdmin();
 }
-async function accionAdmin(accion, datos, clave, msg){
-  if (clave && !confirmarDoble(clave, msg)) return null;
+const nombreMaestro = id => { const m = S.admin && S.admin.maestros && S.admin.maestros.find(x => x.id === id); return m ? esc(m.nombre) : 'este maestro'; };
+async function accionAdmin(accion, datos, opciones){
+  if (opciones && !(await confirmar(opciones))) return null;
   try { const j = await api(accion, Object.assign({ token: S.sesion.token }, datos), true); await cargarAdmin(); return j; }
   catch(e){ aviso(e.message, true); return null; }
 }
-async function cambiarCodigoCentro(){ const j = await accionAdmin('cambiarCodigoCentro', {}, 'centro', 'Toca otra vez para cambiar el código de centro'); if (j) aviso('Nuevo código: ' + j.codigoCentro); }
-async function cambiarRol(id, rol){ const j = await accionAdmin('cambiarRol', { id, rol }, 'rol' + id, rol === 'admin' ? 'Toca otra vez para hacerlo administrador' : 'Toca otra vez para quitarle el papel de administrador'); if (j) aviso(rol === 'admin' ? 'Ahora es administrador' : 'Ya no es administrador'); }
-async function bajaMaestro(id){ const j = await accionAdmin('bajaMaestro', { id }, 'baja' + id, 'Toca otra vez para darlo de baja'); if (j) aviso(j.baja + ' dado de baja'); }
+async function cambiarCodigoCentro(){ const j = await accionAdmin('cambiarCodigoCentro', {}, { titulo: '¿Cambiar el código de centro?', texto: 'El código actual dejará de servir para darse de alta. Los maestros ya registrados no se ven afectados.', boton: 'Sí, cambiar', icono: '🔑' }); if (j) aviso('Nuevo código: ' + j.codigoCentro); }
+async function cambiarRol(id, rol){ const j = await accionAdmin('cambiarRol', { id, rol }, rol === 'admin' ? { titulo: `¿Hacer administrador a ${nombreMaestro(id)}?`, texto: 'Podrá gestionar maestros, claves y el código de centro.', boton: 'Sí, hacerlo admin', icono: '⭐', peligro: false } : { titulo: `¿Quitar el papel de administrador a ${nombreMaestro(id)}?`, texto: 'Seguirá siendo maestro/a.', boton: 'Sí, quitar', icono: '⭐' }); if (j) aviso(rol === 'admin' ? 'Ahora es administrador' : 'Ya no es administrador'); }
+async function bajaMaestro(id){ const j = await accionAdmin('bajaMaestro', { id }, { titulo: `¿Dar de baja a ${nombreMaestro(id)}?`, texto: 'Ya no podrá entrar en la app. Sus reservas ya hechas se mantienen.', boton: 'Sí, dar de baja', icono: '👤' }); if (j) aviso(j.baja + ' dado de baja'); }
 async function restablecerClave(id){
-  const j = await accionAdmin('restablecerClave', { id }, 'clave' + id, 'Toca otra vez para generar una clave nueva');
+  const j = await accionAdmin('restablecerClave', { id }, { titulo: `¿Nueva clave para ${nombreMaestro(id)}?`, texto: 'Su clave actual dejará de funcionar y se le cerrará la sesión. Tendrás que darle la clave provisional.', boton: 'Sí, generar', icono: '🔑' });
   if (j) abrirHoja(`<h2>Clave provisional</h2>
     <p class="ayuda" style="font-size:15px">Dásela a <b>${esc(j.nombre)}</b>. Con ella podrá entrar y después cambiarla en «Cambiar mi clave».</p>
     <div style="text-align:center;margin:22px 0"><span class="codigo" style="font-size:30px;padding:10px 18px">${esc(j.provisional)}</span></div>
@@ -1180,7 +1206,7 @@ async function alternarClase(nombre){
   catch(e){ aviso(e.message, true); await cargarClases(); }
 }
 async function cambiarCodigoClase(nombre){
-  if (!confirmarDoble('cc' + nombre, 'Toca otra vez: el código actual dejará de funcionar')) return;
+  if (!(await confirmar({ titulo: `¿Cambiar el código de ${cl(nombre)}?`, texto: 'El código actual dejará de funcionar. Tendrás que dar el nuevo a tu alumnado.', boton: 'Sí, cambiar', icono: '🔑' }))) return;
   try { const j = await api('cambiarCodigoClase', { token: S.sesion.token, nombre }, true); aviso('Nuevo código: ' + j.codigo); await cargarClases(); }
   catch(e){ aviso(e.message, true); }
 }
@@ -1205,14 +1231,14 @@ async function cargarClases(){
 async function eliminarClase(codigo){
   const c = (S.clasesAntiguas || []).find(x => x.codigo === codigo);
   const n = c && c.participantes ? c.participantes.reduce((t, a) => t + a.envios, 0) : 0;
-  if (!confirmarDoble('el' + codigo, n ? `Toca otra vez: se borrará la clase y sus ${n} mensajes` : 'Toca otra vez para eliminar la clase')) return;
+  if (!(await confirmar({ titulo: '¿Eliminar este código antiguo?', texto: n ? `Se borrará para siempre junto con sus <b>${n} mensajes</b>.` : 'Se borrará para siempre.', boton: 'Sí, eliminar', icono: '🗑️' }))) return;
   try { const j = await api('eliminarClase', { token: S.sesion.token, codigo }, true);
     aviso(j.borrados ? `Clase eliminada con sus ${j.borrados} mensajes` : 'Clase eliminada');
     await Promise.all([cargarClases(), cargarPublicas(), cargarPendientes()]); pintar(); }
   catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); }
 }
 async function retirarPublicacion(tipo, id){
-  if (!confirmarDoble('ret' + id, 'Toca otra vez para retirar la publicación')) return;
+  if (!(await confirmar({ titulo: '¿Retirar esta publicación?', texto: 'Dejará de verse y de contar en el libro del mes y el ranking.', boton: 'Sí, retirar', icono: '📭' }))) return;
   try { await api('retirar', { token: S.sesion.token, tipo, id }, true); cerrarHoja(); aviso('Publicación retirada');
     await cargarPublicas(); pintar(); }
   catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); }
