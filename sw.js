@@ -1,6 +1,6 @@
 // Service worker de la Biblioteca. Sube VERSION en cada actualización.
-const VERSION = 'biblioteca-v26';
-const BASICOS = ['./', './index.html', './manifest.webmanifest', './img/biblioteca.webp', './img/icono-192.png', './img/icono-512.png'];
+const VERSION = 'biblioteca-v27';
+const BASICOS = ['./', './index.html', './manifest.webmanifest', './img/biblioteca.webp', './img/icono-192.png', './img/icono-512.png', './img/escudo-180.webp'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(BASICOS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));

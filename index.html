@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Biblioteca">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preload" as="image" href="img/biblioteca.webp">
+<link rel="preload" as="image" href="img/escudo-180.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -33,6 +34,11 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01e
 
 /* Cabecera */
 .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.cab-izq{display:flex;align-items:center;gap:12px;min-width:0}
+.escudo{width:52px;height:auto;flex-shrink:0;filter:drop-shadow(0 3px 6px rgba(43,35,80,.18))}
+.pie-centro{text-align:center;margin-top:28px}
+.pie-centro img{width:96px;height:auto;opacity:.95;filter:drop-shadow(0 4px 10px rgba(43,35,80,.15))}
+.pie-centro p{font-family:Fraunces,serif;font-size:15px;color:var(--tinta2);margin-top:6px}
 .cab .t{font-family:Fraunces,serif;font-size:28px;font-weight:700;line-height:1.1}
 .cab .centro{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teja);margin-bottom:2px}
 .cab .s{font-size:13px;color:var(--suave)}
@@ -267,7 +273,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.26';
+const VERSION_APP = '1.27';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -513,7 +519,7 @@ function pintar(){
 function cabecera(t){
   const hoy = S.estado ? mayus(fechaLarga(S.estado.ahora.fecha)) : '';
   const quien = esMaestro() ? iniciales(S.sesion.maestro.nombre) : (alumno() ? iniciales(alumno().alias) : '👤');
-  return `<header class="cab"><div>${t ? '' : `<div class="centro">${NOMBRE_CENTRO}</div>`}<div class="t">${t || 'Biblioteca'}</div><div class="s">${hoy}</div></div>
+  return `<header class="cab"><div class="cab-izq">${t ? '' : '<img class="escudo" src="img/escudo-180.webp" alt="Escudo del CEIP Fernando IV">'}<div>${t ? '' : `<div class="centro">${NOMBRE_CENTRO}</div>`}<div class="t">${t || 'Biblioteca'}</div><div class="s">${hoy}</div></div></div>
     <button class="avatar" onclick="ir('perfil')">${esc(quien)}</button></header>`;
 }
 
@@ -943,7 +949,7 @@ async function enviarMensaje(res){
 }
 
 /* ============ PERFIL ============ */
-function vPerfil(){ return vPerfilBase() + `<p class="ayuda" style="text-align:center;margin-top:22px">Versión ${VERSION_APP} · calendario ${esc(S.cal.curso || 'sin cargar')}</p>`; }
+function vPerfil(){ return vPerfilBase() + `<div class="pie-centro"><img src="img/escudo-420.webp" alt="Escudo del CEIP Fernando IV" loading="lazy"><p>CEIP Fernando IV · Monte Lope Álvarez</p></div><p class="ayuda" style="text-align:center;margin-top:6px">Versión ${VERSION_APP} · calendario ${esc(S.cal.curso || 'sin cargar')}</p>`; }
 function vPerfilBase(){
   let html = cabecera('Perfil');
   html += '';
