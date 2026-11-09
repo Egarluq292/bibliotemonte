@@ -41,8 +41,8 @@ const HOJAS = {
   Maestros:    ['id', 'nombre', 'nombreClave', 'sal', 'hash', 'rol', 'token', 'alta'],
   Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta', 'alumnos', 'maestros'],
   Reservas:    ['id', 'fecha', 'tramo', 'maestroId', 'maestro', 'grupo', 'creada', 'estado', 'anuladaPor'],
-  Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase', 'dispositivo', 'nota', 'revisiones'],
-  Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase', 'dispositivo', 'nota', 'revisiones'],
+  Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase', 'dispositivo', 'nota', 'revisiones', 'original', 'editadoPor'],
+  Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase', 'dispositivo', 'nota', 'revisiones', 'original', 'editadoPor'],
   Festivos:    ['fecha', 'motivo']
 };
 
@@ -467,7 +467,7 @@ function pendientes(p) {
   const mias = clasesDe(m);
   const pend = (h) => filas(h)
     .filter(x => x.estado === 'pendiente' && esDeSusClases(m, x, mias))
-    .map(x => { const o = Object.assign({}, x); delete o._fila; delete o.dispositivo; o.mia = x.maestroClase === m.id || mias.indexOf(x.clase) !== -1; return o; });
+    .map(x => { const o = Object.assign({}, x); delete o._fila; delete o.dispositivo; delete o.original; o.mia = x.maestroClase === m.id || mias.indexOf(x.clase) !== -1; return o; });
   return { sugerencias: pend('Sugerencias'), resenas: pend('Resenas'), todas: m.rol === 'admin' };
 }
 
@@ -481,6 +481,17 @@ function moderar(p) {
   if (!esDeSusClases(m, x, clasesDe(m))) throw new Error('Solo puedes revisar los comentarios de tus clases.');
   if (x.estado !== 'pendiente') throw new Error('Otro maestro ya lo ha revisado.');
   const cambios = { estado: p.decision, moderadaPor: m.nombre };
+  // El maestro corrige el texto él mismo antes de publicar. Se guarda el original.
+  if (p.decision === 'aprobada' && p.edicion) {
+    const e = p.edicion, esResena = hoja === 'Resenas';
+    const nuevos = esResena
+      ? { libro: texto(e.libro, 100, 'título del libro'), autorLibro: texto(e.autorLibro || '-', 80, 'autor'), texto: texto(e.texto, 1000, 'reseña') }
+      : { titulo: texto(e.titulo, 80, 'título'), texto: texto(e.texto, 1000, 'texto') };
+    if (!x.original) cambios.original = JSON.stringify(esResena
+      ? { libro: x.libro, autorLibro: x.autorLibro, texto: x.texto } : { titulo: x.titulo, texto: x.texto });
+    cambios.editadoPor = m.nombre;
+    Object.assign(cambios, nuevos);
+  }
   if (p.decision === 'devuelta') {
     if (x.tipoAutor !== 'alumno' || !x.dispositivo) throw new Error('Este mensaje no se puede devolver (se envió antes de esta función).');
     cambios.nota = texto(p.nota, 200, 'nota para el alumno');
@@ -515,8 +526,8 @@ function listarClases(p) {
       const a = porAlumno[k] || (porAlumno[k] = { alias: x.alias, envios: 0, publicados: 0, ultimo: '', mensajes: [] });
       a.envios++;
       a.mensajes.push(x.libro !== undefined
-        ? { tipo: 'resena', libro: x.libro, valoracion: x.valoracion, texto: x.texto, estado: x.estado, creada: x.creada }
-        : { tipo: 'sugerencia', titulo: x.titulo, texto: x.texto, estado: x.estado, creada: x.creada });
+        ? { tipo: 'resena', libro: x.libro, valoracion: x.valoracion, texto: x.texto, estado: x.estado, creada: x.creada, editadoPor: x.editadoPor || '' }
+        : { tipo: 'sugerencia', titulo: x.titulo, texto: x.texto, estado: x.estado, creada: x.creada, editadoPor: x.editadoPor || '' });
       if (x.estado === 'aprobada') a.publicados++;
       if (x.creada > a.ultimo) a.ultimo = x.creada;
     });

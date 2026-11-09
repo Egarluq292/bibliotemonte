@@ -255,6 +255,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 .tres-botones{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
 .btn-peq.oro{background:var(--oro);color:var(--tinta)}
 .pill.devuelto-p{background:#FBF3DC;color:#9A6B00}
+.tag-editado{background:#E8F1FB;color:#24508A;font-weight:600;padding:1px 7px;border-radius:6px}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -281,7 +282,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.29';
+const VERSION_APP = '1.30';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -1114,7 +1115,7 @@ function verAlumno(codigo, i){
           <span class="pill ${(est[m.estado] || est.pendiente)[1]}" style="flex-shrink:0">${(est[m.estado] || est.pendiente)[0]}</span></div>
         ${m.tipo === 'resena' ? `<div class="estrellas" style="margin-top:2px">${estrellas(+m.valoracion)}</div>` : ''}
         <p style="font-size:14px;color:var(--tinta2);margin-top:4px;white-space:pre-wrap">${esc(m.texto)}</p>
-        <div class="meta" style="margin-top:4px">${fechaCorta(m.creada)}</div></div>`).join('')
+        <div class="meta" style="margin-top:4px">${fechaCorta(m.creada)}${m.editadoPor ? ` · <span class="tag-editado">✏️ Editado por ${esc(m.editadoPor)}</span>` : ''}</div></div>`).join('')
       : '<p class="ayuda" style="margin-top:12px">Falta actualizar el servidor para ver los mensajes.</p>'}
     <button class="btn" onclick="cerrarHoja()">Cerrar</button>`);
 }
@@ -1161,6 +1162,7 @@ function vGuia(){
     ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
       <p>Púlsalo y elige <b>Publicar</b>, <b>Devolver</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>
       <p>Si tiene faltas o está incompleto, pulsa <b>Devolver</b>: elige una frase («Revisa la ortografía y vuelve a enviarlo», «Cuéntanos un poco más» o «Escríbelo con tus propias palabras») o escribe la tuya. El alumno lo verá en su app, lo corregirá y te volverá a llegar marcado como <b>«🔁 Corregido»</b>.</p>
+      <p>Para una errata pequeña, o con alumnado que no puede corregir solo, en Devolver elige la pestaña <b>«Lo corrijo yo»</b>: arreglas el texto y pulsas <b>Guardar y publicar</b>. El original queda guardado, y en la ficha del alumno verás «✏️ Editado por…»; el resto de compañeros no ve esa marca.</p>
       <p>Si algo ya publicado no debería estar, ábrelo en el <b>Buzón</b> y pulsa <b>Retirar publicación</b>.</p>`, 'revisar')}
     ${paso(8, 'Lo que ve tu alumnado', `<p>El alumnado tiene una app más sencilla, <b>sin la pestaña de reservas</b>. En su Inicio ve:</p>
       <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes. Debajo del ranking, <b>«¿Cómo se calcula?»</b> lo explica con un ejemplo de castañas.</li></ul>
@@ -1308,11 +1310,39 @@ const FRASES_DEVOLVER = [
   'Escríbelo con tus propias palabras.'
 ];
 function formDevolver(tipo, id){
-  abrirHoja(`<h2>Devolver al alumno</h2>
-    <p class="ayuda">El alumno verá este mensaje en su app, podrá corregirlo y volver a enviarlo.</p>
-    <div class="chips" style="margin-top:12px">${FRASES_DEVOLVER.map(f => `<button class="chip" onclick="$('#dNota').value=this.textContent;document.querySelectorAll('#hoja .chips .chip').forEach(c=>c.classList.toggle('on',c===this))">${f}</button>`).join('')}</div>
-    <label>Mensaje para el alumno</label><textarea id="dNota" maxlength="200" style="min-height:80px">${FRASES_DEVOLVER[0]}</textarea>
-    <button class="btn" id="dBtn" onclick="devolver('${tipo}','${id}')">Devolver</button>`);
+  const p = S.pendientes || { sugerencias: [], resenas: [] };
+  const x = S.demoMsgs.find(m => m.id === id) || p.sugerencias.concat(p.resenas).find(m => m.id === id) || {};
+  const res = tipo === 'resena';
+  abrirHoja(`<h2>Revisar el mensaje</h2>
+    <div class="seg" style="margin:12px 0 4px">
+      <button class="on" id="tAl" onclick="modoDevolver('alumno')">Lo corrige el alumno</button>
+      <button id="tYo" onclick="modoDevolver('yo')">Lo corrijo yo</button></div>
+    <div id="mAlumno">
+      <p class="ayuda" style="margin-top:8px">El alumno verá este mensaje en su app, podrá corregirlo y volver a enviarlo.</p>
+      <div class="chips" style="margin-top:12px">${FRASES_DEVOLVER.map(f => `<button class="chip" onclick="$('#dNota').value=this.textContent;document.querySelectorAll('#hoja .chips .chip').forEach(c=>c.classList.toggle('on',c===this))">${f}</button>`).join('')}</div>
+      <label>Mensaje para el alumno</label><textarea id="dNota" maxlength="200" style="min-height:80px">${FRASES_DEVOLVER[0]}</textarea>
+      <button class="btn" id="dBtn" onclick="devolver('${tipo}','${id}')">Devolver al alumno</button>
+    </div>
+    <div id="mYo" style="display:none">
+      <p class="ayuda" style="margin-top:8px">Corrige el texto y publícalo. Úsalo para erratas pequeñas o con alumnado que no puede corregir solo. El original queda guardado.</p>
+      ${res ? `<label>Título del libro</label><input id="eLibro" maxlength="100" value="${esc(x.libro || '')}">
+        <label>Autor o autora</label><input id="eAutor" maxlength="80" value="${esc(x.autorLibro && x.autorLibro !== '-' ? x.autorLibro : '')}">`
+      : `<label>Título</label><input id="eTitulo" maxlength="80" value="${esc(x.titulo || '')}">`}
+      <label>${res ? 'Opinión' : 'Sugerencia'}</label><textarea id="eTexto" maxlength="1000">${esc(x.texto || '')}</textarea>
+      <button class="btn" id="eBtn" onclick="guardarEdicion('${tipo}','${id}')">Guardar y publicar</button>
+    </div>`);
+}
+function modoDevolver(m){
+  $('#tAl').classList.toggle('on', m === 'alumno'); $('#tYo').classList.toggle('on', m === 'yo');
+  $('#mAlumno').style.display = m === 'alumno' ? '' : 'none'; $('#mYo').style.display = m === 'yo' ? '' : 'none';
+}
+async function guardarEdicion(tipo, id){
+  const res = tipo === 'resena';
+  const edicion = res ? { libro: $('#eLibro').value.trim(), autorLibro: $('#eAutor').value.trim() || '-', texto: $('#eTexto').value.trim() }
+                      : { titulo: $('#eTitulo').value.trim(), texto: $('#eTexto').value.trim() };
+  if (!edicion.texto || !(res ? edicion.libro : edicion.titulo)) { aviso('No dejes campos vacíos', true); return; }
+  $('#eBtn').disabled = true;
+  await moderar(tipo, id, 'aprobada', null, edicion); cerrarHoja();
 }
 async function devolver(tipo, id){
   const nota = $('#dNota').value.trim(); if (!nota) { aviso('Escribe qué tiene que revisar', true); return; }
@@ -1320,14 +1350,15 @@ async function devolver(tipo, id){
   await moderar(tipo, id, 'devuelta', nota); cerrarHoja();
 }
 
-async function moderar(tipo, id, decision, nota){
-  const textos = { aprobada: 'Publicado ✓', rechazada: 'Descartado', devuelta: 'Devuelto al alumno ✓' };
+async function moderar(tipo, id, decision, nota, edicion){
+  const textos = { aprobada: edicion ? 'Corregido y publicado ✓' : 'Publicado ✓', rechazada: 'Descartado', devuelta: 'Devuelto al alumno ✓' };
   if (String(id).startsWith('DEMO')) {
-    const m = S.demoMsgs.find(x => x.id === id); if (m) { m.estado = decision; if (nota) { m.nota = nota; m.moderadaPor = S.sesion.maestro.nombre; } }
+    const m = S.demoMsgs.find(x => x.id === id);
+    if (m) { m.estado = decision; if (nota) { m.nota = nota; m.moderadaPor = S.sesion.maestro.nombre; } if (edicion) Object.assign(m, edicion, { editadoPor: S.sesion.maestro.nombre }); }
     guardar('bib_demoMsgs', S.demoMsgs); aviso(textos[decision]); pintar(); return;
   }
   try {
-    await api('moderar', { token: S.sesion.token, tipo, id, decision, nota }, true);
+    await api('moderar', { token: S.sesion.token, tipo, id, decision, nota, edicion }, true);
     aviso(textos[decision]);
   } catch(e){ aviso(/Decisión no válida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); }
   await Promise.all([cargarPendientes(), cargarPublicas()]); pintar();
