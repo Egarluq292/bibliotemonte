@@ -256,6 +256,25 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 .btn-peq.oro{background:var(--oro);color:var(--tinta)}
 .pill.devuelto-p{background:#FBF3DC;color:#9A6B00}
 .tag-editado{background:#E8F1FB;color:#24508A;font-weight:600;padding:1px 7px;border-radius:6px}
+.bienvenida{position:fixed;inset:0;z-index:80;background:linear-gradient(180deg,rgba(43,35,80,.92),rgba(43,35,80,.97)),url(img/biblioteca.webp) center/cover;display:none;overflow:auto;padding:calc(env(safe-area-inset-top) + 24px) 18px calc(env(safe-area-inset-bottom) + 24px)}
+.bienvenida.on{display:flex;align-items:center;justify-content:center}
+.b-cab .centro{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teja);margin-bottom:4px}
+.b-caja{width:100%;max-width:440px;margin:auto;background:var(--blanco);border-radius:26px;padding:24px 20px 18px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.b-cab{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.b-icono{width:62px;height:62px;border-radius:16px;box-shadow:0 6px 16px rgba(43,35,80,.3)}
+.b-titulo{font-family:Fraunces,serif;font-size:30px;font-weight:700;line-height:1}
+.b-caja h2{font-size:24px}
+.b-sub{color:var(--tinta2);margin-top:6px;font-size:15px}
+.b-paso{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--linea);font-size:15px}
+.b-paso:last-of-type{border-bottom:0}
+.b-ico{display:inline-block;background:var(--papel2);border-radius:6px;padding:0 6px;font-weight:700}
+.b-grande{font-size:18px;padding:17px}
+.b-nota{font-size:13px;color:var(--suave);margin-top:10px;text-align:center}
+.b-saltar{display:block;margin:16px auto 0;color:var(--suave);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+.b-ok{font-size:46px;text-align:center}
+.b-caja h2:has(+ .b-sub){margin-top:4px}
+.b-flecha{text-align:center;font-size:30px;color:var(--oro);margin-top:6px;animation:bote 1.2s ease-in-out infinite}
+@keyframes bote{50%{transform:translateY(6px)}}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -271,6 +290,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 
 <div class="velo" id="velo"></div>
 <div class="hoja" id="hoja"><div class="asa"></div><div id="hojaCont"></div></div>
+<div class="bienvenida" id="bienvenida"></div>
 <div class="aviso" id="aviso"></div>
 <div class="conf-velo" id="confVelo"><div class="conf" role="dialog" aria-modal="true">
   <div class="conf-icono" id="confIcono">⚠️</div>
@@ -282,7 +302,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.30';
+const VERSION_APP = '1.31';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -1169,7 +1189,8 @@ function vGuia(){
       <p>Solo cuenta lo que tú publicas: <b>descartar</b> un mensaje también lo deja fuera del ranking.</p>
       <p>Para verlo tú mismo o enseñarlo en clase, entra en <b>Perfil → Ver la app como alumno</b>. Puedes escribir reseñas de ejemplo y revisarlas después desde tu perfil: <b>no se envían a nadie</b> y solo se ven en tu dispositivo.</p>`, 'alumnado')}
     ${paso(9, 'Instalar y compartir', `<p>En <b>Perfil</b> tienes <b>«Instalar como app»</b>, para tenerla en la pantalla de inicio, y <b>«Compartir la app»</b>, para enviar el enlace al alumnado o a las familias.</p>
-      <p>El mensaje <b>no lleva el código de clase</b>: ese lo das tú en el aula.</p>`, 'compartir')}
+      <p>El mensaje <b>no lleva el código de clase</b>: ese lo das tú en el aula.</p>
+      <p>Al abrir el enlace, las familias ven primero una pantalla con <b>los pasos para instalarla en su móvil</b>. Si lo abren desde WhatsApp, la app les explica cómo pasarla a Chrome o Safari, porque desde WhatsApp no se puede instalar.</p>`, 'compartir')}
     <section class="card guia-paso"><h3>¿Problemas?</h3><div class="guia-texto">
       <ul><li><b>He olvidado mi clave:</b> pide al administrador una clave provisional y luego cámbiala en <b>Perfil → Cambiar mi clave</b>.</li>
       <li><b>No veo los cambios:</b> cierra la app y ábrela de nuevo; se actualiza sola.</li>
@@ -1392,8 +1413,8 @@ async function copiarEnlace(){
 let avisoInstalar = null;
 const esApp = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const esIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); avisoInstalar = e; pintar(); });
-window.addEventListener('appinstalled', () => { avisoInstalar = null; aviso('App instalada ✓'); pintar(); });
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); avisoInstalar = e; pintar(); pintarBienvenida(); });
+window.addEventListener('appinstalled', () => { avisoInstalar = null; S.instalada = true; pintar(); pintarBienvenida(); });
 
 function tarjetaInstalar(conCerrar){
   if (esApp()) return '';
@@ -1437,6 +1458,68 @@ async function instalarApp(){
     <button class="btn" onclick="cerrarHoja()">Entendido</button>`);
 }
 
+/* ============ BIENVENIDA: INSTALAR PRIMERO ============ */
+const ua = navigator.userAgent;
+const enNavegadorInterno = () => /FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|Telegram|; wv\)|GSA\//i.test(ua) || (esIOS() && !/Safari\//.test(ua));
+const esAndroid = () => /android/i.test(ua);
+const esMovil = () => esIOS() || esAndroid();
+
+function pintarBienvenida(){
+  const el = $('#bienvenida');
+  if (esApp() || sessionStorage.getItem('bib_seguirWeb')) { el.classList.remove('on'); return; }
+  const paso = (n, t) => `<div class="b-paso"><span class="num-paso">${n}</span><span>${t}</span></div>`;
+  let cuerpo;
+  if (S.instalada) {
+    cuerpo = `<div class="b-ok">✅</div><h2>¡Instalada!</h2>
+      <p class="b-sub">Ya puedes cerrar esta ventana y abrir <b>Biblioteca</b> desde la pantalla de inicio de tu móvil.</p>
+      <p class="b-sub">Dentro de la app, entra en <b>Perfil</b> con el código de tu clase.</p>`;
+  } else if (esMovil() && enNavegadorInterno()) {
+    cuerpo = `<h2>Ábrela en ${esIOS() ? 'Safari' : 'Chrome'}</h2>
+      <p class="b-sub">Desde aquí (WhatsApp u otra app) no se puede instalar. Primero hay que abrirla en el navegador:</p>
+      ${esIOS()
+        ? paso(1, 'Toca los <b>tres puntos ···</b> o el icono de <b>compartir</b> de esta pantalla.') + paso(2, 'Elige <b>Abrir en Safari</b> (o «Abrir en el navegador»).') + paso(3, 'En Safari aparecerán los pasos para instalarla.')
+        : paso(1, 'Toca los <b>tres puntos ⋮</b> de arriba a la derecha.') + paso(2, 'Elige <b>Abrir en Chrome</b> (o «Abrir en el navegador»).') + paso(3, 'En Chrome aparecerán los pasos para instalarla.')}
+      <button class="btn sec" onclick="copiarSoloEnlace()">Copiar el enlace</button>
+      <p class="b-nota">Si no encuentras la opción, copia el enlace y pégalo en ${esIOS() ? 'Safari' : 'Chrome'}.</p>`;
+  } else if (avisoInstalar) {
+    cuerpo = `<h2>Instala la Biblioteca</h2>
+      <p class="b-sub">Antes de empezar, instálala en tu ${esMovil() ? 'móvil' : 'ordenador'}. Es gratis, ocupa muy poco y se actualiza sola.</p>
+      <button class="btn btn-oro b-grande" onclick="instalarApp()">📲 Instalar ahora</button>
+      <p class="b-nota">Después ábrela desde ${esMovil() ? 'la pantalla de inicio' : 'el escritorio'} y entra en Perfil con el código de tu clase.</p>`;
+  } else if (esIOS()) {
+    cuerpo = `<h2>Instala la Biblioteca</h2>
+      <p class="b-sub">Antes de empezar, instálala en tu iPhone o iPad. Es gratis y tarda un momento:</p>
+      ${paso(1, 'Toca el botón <b>Compartir</b> <span class="b-ico">⬆︎</span> (el cuadrado con la flecha, abajo o arriba de Safari).')}
+      ${paso(2, 'Baja y elige <b>Añadir a pantalla de inicio</b>.')}
+      ${paso(3, 'Pulsa <b>Añadir</b>. Abre <b>Biblioteca</b> desde tu pantalla de inicio.')}
+      <div class="b-flecha">⬇︎</div>`;
+  } else if (esAndroid()) {
+    cuerpo = `<h2>Instala la Biblioteca</h2>
+      <p class="b-sub">Antes de empezar, instálala en tu móvil. Es gratis y tarda un momento:</p>
+      ${paso(1, 'Toca los <b>tres puntos ⋮</b> de arriba a la derecha de Chrome.')}
+      ${paso(2, 'Elige <b>Instalar aplicación</b> o <b>Añadir a pantalla de inicio</b>.')}
+      ${paso(3, 'Confirma y abre <b>Biblioteca</b> desde tu pantalla de inicio.')}
+      <p class="b-nota">¿No ves «Instalar»? En ese menú elige primero <b>Abrir en Chrome</b> y repite los pasos.</p>`;
+  } else {
+    cuerpo = `<h2>Instala la Biblioteca</h2>
+      <p class="b-sub">Puedes instalarla en este ordenador con Chrome o Edge:</p>
+      ${paso(1, 'Pulsa el icono <b>Instalar ⊕</b> a la derecha de la barra de direcciones.')}
+      ${paso(2, 'Si no aparece: menú <b>⋮</b> → <b>Transmitir, guardar y compartir</b> → <b>Instalar página como aplicación</b>.')}
+      ${paso(3, 'Se abrirá en su propia ventana, con acceso directo en el escritorio.')}`;
+  }
+  el.innerHTML = `<div class="b-caja">
+      <div class="b-cab"><img src="img/icono-192.png" alt="" class="b-icono"><div><div class="centro">CEIP Fernando IV</div><div class="b-titulo">Biblioteca</div></div></div>
+      ${cuerpo}
+      ${S.instalada ? '' : '<button class="b-saltar" onclick="seguirEnWeb()">Seguir en el navegador sin instalar</button>'}
+    </div>`;
+  el.classList.add('on');
+}
+function seguirEnWeb(){ sessionStorage.setItem('bib_seguirWeb', '1'); pintarBienvenida(); }
+async function copiarSoloEnlace(){
+  try { await navigator.clipboard.writeText(URL_APP); aviso('Enlace copiado ✓'); }
+  catch(e){ prompt('Copia este enlace:', URL_APP); }
+}
+
 /* ============ ARRANQUE ============ */
 // Actualización automática: si hay versión nueva, la app se recarga sola (sin interrumpir si hay algo abierto).
 if ('serviceWorker' in navigator) {
@@ -1460,6 +1543,7 @@ if ('serviceWorker' in navigator) {
 }
 leerCache();
 pintar();
+pintarBienvenida();
 refrescar();
 if (esMaestro()) cargarClases();
 setInterval(() => { actualizarReloj(); if (!document.hidden && !$('#hoja').classList.contains('on')) { pintar(); refrescar(); } }, 60000);
