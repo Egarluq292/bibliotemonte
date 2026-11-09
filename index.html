@@ -281,7 +281,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.28';
+const VERSION_APP = '1.29';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -1160,7 +1160,7 @@ function vGuia(){
       <ul><li>Aparecerán como botones al <b>reservar</b> y recibirás para revisar lo que escriba su alumnado.</li><li>Cada clase tiene <b>un código</b> para todo su alumnado. Dalo <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre e inicial, <b>sin apellidos</b> (p. ej. «Lucía M.»).</li><li>Debajo de cada clase verás <b>qué alumnos han participado</b>. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>El número de alumnos se corrige tocando <b>«✏️»</b>; el ranking lo usa para comparar clases.</li><li>Si el código se difunde fuera de clase, pulsa <b>Cambiar código</b>: el anterior deja de funcionar.</li></ul>`, 'clases')}
     ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
       <p>Púlsalo y elige <b>Publicar</b>, <b>Devolver</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>
-      <p>Si tiene faltas o está incompleto, pulsa <b>Devolver</b>: elige una frase («Revisa la ortografía y vuelve a enviarlo», «Revisa las tildes»…) o escribe la tuya. El alumno lo verá en su app, lo corregirá y te volverá a llegar marcado como <b>«🔁 Corregido»</b>.</p>
+      <p>Si tiene faltas o está incompleto, pulsa <b>Devolver</b>: elige una frase («Revisa la ortografía y vuelve a enviarlo», «Cuéntanos un poco más» o «Escríbelo con tus propias palabras») o escribe la tuya. El alumno lo verá en su app, lo corregirá y te volverá a llegar marcado como <b>«🔁 Corregido»</b>.</p>
       <p>Si algo ya publicado no debería estar, ábrelo en el <b>Buzón</b> y pulsa <b>Retirar publicación</b>.</p>`, 'revisar')}
     ${paso(8, 'Lo que ve tu alumnado', `<p>El alumnado tiene una app más sencilla, <b>sin la pestaña de reservas</b>. En su Inicio ve:</p>
       <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes. Debajo del ranking, <b>«¿Cómo se calcula?»</b> lo explica con un ejemplo de castañas.</li></ul>
@@ -1304,8 +1304,6 @@ async function retirarPublicacion(tipo, id){
 }
 const FRASES_DEVOLVER = [
   'Revisa la ortografía y vuelve a enviarlo.',
-  'Revisa las mayúsculas y los puntos.',
-  'Revisa las tildes.',
   'Cuéntanos un poco más.',
   'Escríbelo con tus propias palabras.'
 ];
