@@ -41,8 +41,8 @@ const HOJAS = {
   Maestros:    ['id', 'nombre', 'nombreClave', 'sal', 'hash', 'rol', 'token', 'alta'],
   Clases:      ['codigo', 'nombre', 'maestroId', 'activa', 'alta', 'alumnos', 'maestros'],
   Reservas:    ['id', 'fecha', 'tramo', 'maestroId', 'maestro', 'grupo', 'creada', 'estado', 'anuladaPor'],
-  Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
-  Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase'],
+  Sugerencias: ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'titulo', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase', 'dispositivo', 'nota', 'revisiones'],
+  Resenas:     ['id', 'creada', 'tipoAutor', 'alias', 'clase', 'libro', 'autorLibro', 'valoracion', 'texto', 'estado', 'moderadaPor', 'codigoClase', 'maestroClase', 'dispositivo', 'nota', 'revisiones'],
   Festivos:    ['fecha', 'motivo']
 };
 
@@ -133,7 +133,7 @@ function manejar(accion, p) {
     estado, publicas, registrarMaestro, entrar, reservar, anular,
     enviarSugerencia, enviarResena, pendientes, moderar, listarClases,
     cambiarClave, adminInfo, restablecerClave, bajaMaestro, cambiarRol, cambiarCodigoCentro, alumnosClase, eliminarClase, retirar,
-    misClases, cambiarCodigoClase
+    misClases, cambiarCodigoClase, misDevueltos
   };
   if (!acciones[accion]) throw new Error('Acción desconocida.');
   prepararClases();
@@ -336,12 +336,13 @@ function anular(p) {
 /** Alumnado: { codigoClase, alias, ... } · Maestros: { token, ... } */
 function enviarSugerencia(p) {
   const a = autor(p);
-  const s = {
+  const datos = { titulo: texto(p.titulo, 80, 'título'), texto: texto(p.texto, 1000, 'texto') };
+  if (p.reenviarId) return reenviar('Sugerencias', p, a, datos);
+  const s = Object.assign({
     id: 'S' + Date.now().toString(36), creada: ahoraLocal().completo, tipoAutor: a.tipo, alias: a.alias, clase: a.clase,
-    titulo: texto(p.titulo, 80, 'título'), texto: texto(p.texto, 1000, 'texto'),
     estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: '',
-    codigoClase: a.codigo, maestroClase: a.maestroId
-  };
+    codigoClase: a.codigo, maestroClase: a.maestroId, dispositivo: dispositivoDe(p), nota: '', revisiones: '0'
+  }, datos);
   anadir('Sugerencias', s);
   return { estado: s.estado };
 }
@@ -350,15 +351,46 @@ function enviarResena(p) {
   const a = autor(p);
   const val = Number(p.valoracion);
   if (!(val >= 1 && val <= 5)) throw new Error('La valoración debe estar entre 1 y 5 estrellas.');
-  const r = {
-    id: 'L' + Date.now().toString(36), creada: ahoraLocal().completo, tipoAutor: a.tipo, alias: a.alias, clase: a.clase,
+  const datos = {
     libro: texto(p.libro, 100, 'título del libro'), autorLibro: texto(p.autorLibro || '-', 80, 'autor'),
-    valoracion: String(Math.round(val)), texto: texto(p.texto, 1000, 'reseña'),
-    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: '',
-    codigoClase: a.codigo, maestroClase: a.maestroId
+    valoracion: String(Math.round(val)), texto: texto(p.texto, 1000, 'reseña')
   };
+  if (p.reenviarId) return reenviar('Resenas', p, a, datos);
+  const r = Object.assign({
+    id: 'L' + Date.now().toString(36), creada: ahoraLocal().completo, tipoAutor: a.tipo, alias: a.alias, clase: a.clase,
+    estado: a.tipo === 'maestro' ? 'aprobada' : 'pendiente', moderadaPor: '',
+    codigoClase: a.codigo, maestroClase: a.maestroId, dispositivo: dispositivoDe(p), nota: '', revisiones: '0'
+  }, datos);
   anadir('Resenas', r);
   return { estado: r.estado };
+}
+
+const dispositivoDe = p => String(p.dispositivo || '').replace(/[^\w-]/g, '').slice(0, 40);
+
+/** El alumno corrige un mensaje que le devolvieron: solo desde el mismo dispositivo y con el mismo nombre. */
+function reenviar(h, p, a, datos) {
+  const disp = dispositivoDe(p);
+  const x = filas(h).find(f => f.id === p.reenviarId);
+  if (!x || x.estado !== 'devuelta' || !disp || x.dispositivo !== disp || normalizar(x.alias) !== normalizar(a.alias))
+    throw new Error('Ese mensaje ya no se puede corregir.');
+  escribir(h, x._fila, Object.assign({}, datos, { estado: 'pendiente', revisiones: String((Number(x.revisiones) || 0) + 1) }));
+  return { estado: 'pendiente' };
+}
+
+/** { dispositivo, alias } → mensajes devueltos a este alumno en este dispositivo. */
+function misDevueltos(p) {
+  const disp = dispositivoDe(p), alias = normalizar(p.alias || '');
+  if (!disp || !alias) return { devueltos: [] };
+  const lista = [];
+  [['Sugerencias', 'sugerencia'], ['Resenas', 'resena']].forEach(([h, tipo]) => {
+    filas(h).filter(x => x.estado === 'devuelta' && x.dispositivo === disp && normalizar(x.alias) === alias).forEach(x => {
+      const o = { _t: tipo, id: x.id, nota: x.nota, moderadaPor: x.moderadaPor, creada: x.creada, texto: x.texto };
+      if (tipo === 'resena') Object.assign(o, { libro: x.libro, autorLibro: x.autorLibro, valoracion: Number(x.valoracion) });
+      else o.titulo = x.titulo;
+      lista.push(o);
+    });
+  });
+  return { devueltos: lista };
 }
 
 function autor(p) {
@@ -435,7 +467,7 @@ function pendientes(p) {
   const mias = clasesDe(m);
   const pend = (h) => filas(h)
     .filter(x => x.estado === 'pendiente' && esDeSusClases(m, x, mias))
-    .map(x => { const o = Object.assign({}, x); delete o._fila; o.mia = x.maestroClase === m.id || mias.indexOf(x.clase) !== -1; return o; });
+    .map(x => { const o = Object.assign({}, x); delete o._fila; delete o.dispositivo; o.mia = x.maestroClase === m.id || mias.indexOf(x.clase) !== -1; return o; });
   return { sugerencias: pend('Sugerencias'), resenas: pend('Resenas'), todas: m.rol === 'admin' };
 }
 
@@ -443,12 +475,17 @@ function pendientes(p) {
 function moderar(p) {
   const m = maestroPorToken(p.token);
   const hoja = p.tipo === 'resena' ? 'Resenas' : 'Sugerencias';
-  if (['aprobada', 'rechazada'].indexOf(p.decision) === -1) throw new Error('Decisión no válida.');
+  if (['aprobada', 'rechazada', 'devuelta'].indexOf(p.decision) === -1) throw new Error('Decisión no válida.');
   const x = filas(hoja).find(f => f.id === p.id);
   if (!x) throw new Error('No encontrado.');
   if (!esDeSusClases(m, x, clasesDe(m))) throw new Error('Solo puedes revisar los comentarios de tus clases.');
   if (x.estado !== 'pendiente') throw new Error('Otro maestro ya lo ha revisado.');
-  escribir(hoja, x._fila, { estado: p.decision, moderadaPor: m.nombre });
+  const cambios = { estado: p.decision, moderadaPor: m.nombre };
+  if (p.decision === 'devuelta') {
+    if (x.tipoAutor !== 'alumno' || !x.dispositivo) throw new Error('Este mensaje no se puede devolver (se envió antes de esta función).');
+    cambios.nota = texto(p.nota, 200, 'nota para el alumno');
+  }
+  escribir(hoja, x._fila, cambios);
   return { id: x.id, estado: p.decision };
 }
 

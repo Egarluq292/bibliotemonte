@@ -247,6 +247,14 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 .conf-botones{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
 .conf-botones .btn{margin:0;padding:15px 10px}
 .btn.rojo{background:var(--teja);color:#fff}
+.revisar.devuelto{background:var(--oro);color:var(--tinta)}
+.nota-maestro{background:#FBF3DC;border:1px solid #F0DDA4;border-radius:14px;padding:12px 14px;margin:10px 0 4px}
+.nota-maestro span{display:block;font-size:13px;color:var(--tinta2)}
+.nota-maestro b{display:block;margin-top:2px;font-size:16px}
+.corregido{margin-top:8px;font-size:13px;background:#E8F1FB;color:#24508A;border-radius:10px;padding:6px 10px}
+.tres-botones{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.btn-peq.oro{background:var(--oro);color:var(--tinta)}
+.pill.devuelto-p{background:#FBF3DC;color:#9A6B00}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -273,7 +281,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.27';
+const VERSION_APP = '1.28';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -293,7 +301,8 @@ const S = {
   sesion: leer('bib_sesion'),
   demo: !!leer('bib_demo'),
   ejemplo: !!leer('bib_ejemplo'),
-  demoMsgs: leer('bib_demoMsgs') || [],   // maestro: {token, maestro:{id,nombre,rol}}
+  demoMsgs: leer('bib_demoMsgs') || [],
+  devueltos: [],   // maestro: {token, maestro:{id,nombre,rol}}
   alumno: leer('bib_alumno')    // alumno: {codigoClase, alias}
 };
 
@@ -457,9 +466,22 @@ async function cargarCalendario(){
 async function cargarPublicas(){ S.publicas = await api('publicas'); guardarCache(); }
 async function cargarPendientes(){ if (esMaestro()) S.pendientes = await api('pendientes', { token: S.sesion.token }, true).catch(() => null); }
 
+/** Identificador anónimo de este dispositivo: sirve para devolver al alumno sus propios mensajes. */
+function idDispositivo(){
+  let id = leer('bib_dispositivo');
+  if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); guardar('bib_dispositivo', id); }
+  return id;
+}
+async function cargarDevueltos(){
+  if (S.demo) { S.devueltos = S.demoMsgs.filter(x => x.estado === 'devuelta'); return; }
+  if (esMaestro() || !S.alumno) { S.devueltos = []; return; }
+  try { S.devueltos = (await api('misDevueltos', { dispositivo: idDispositivo(), alias: S.alumno.alias })).devueltos || []; }
+  catch(e){ S.devueltos = S.devueltos || []; }
+}
+
 async function refrescar(){
   try {
-    await Promise.all([cargarEstado(), cargarPublicas(), cargarPendientes(), cargarCalendario()]);
+    await Promise.all([cargarEstado(), cargarPublicas(), cargarPendientes(), cargarCalendario(), cargarDevueltos()]);
     if (S.mesVista && S.mesVista !== S.estado.mes) await cargarEstado(S.mesVista);
     guardarCache();
     pintar();
@@ -695,7 +717,12 @@ function vInicioAlumno(){
   const mesNombre = MESES[+S.estado.ahora.fecha.slice(5, 7) - 1];
   const res = pub().resenas.length, sug = pub().sugerencias.length;
 
-  return cabecera() + `
+  const nDev = (S.devueltos || []).length;
+  const avisoDev = nDev ? `<button class="card revisar devuelto" onclick="verDevueltos()">
+      <span class="icono" style="background:rgba(255,255,255,.25)">✏️</span>
+      <span style="flex:1;text-align:left"><b>${nDev === 1 ? 'Te han devuelto 1 mensaje' : `Te han devuelto ${nDev} mensajes`}</b>
+      <span style="display:block;font-size:13px;opacity:.9">${nDev === 1 ? 'Corrígelo y vuelve a enviarlo' : 'Corrígelos y vuelve a enviarlos'}</span></span><span class="ir" style="color:var(--tinta)">›</span></button>` : '';
+  return cabecera() + avisoDev + `
   <div class="card hero hero-alumno">
     <div class="etq">Biblioteca del cole</div>
     <div class="estado">${nombre ? '¡Hola, ' + esc(nombre) + '!' : '¡Hola!'}</div>
@@ -912,7 +939,12 @@ function nuevoMensaje(){
     return;
   }
   const res = S.buzonTab === 'resenas';
-  abrirHoja(`<h2>${res ? 'Nueva reseña' : 'Nueva sugerencia'}</h2>
+  formMensaje(res, null);
+}
+/** Formulario para escribir o, si viene «dev», para corregir un mensaje devuelto. */
+function formMensaje(res, dev){
+  abrirHoja(`<h2>${dev ? (res ? 'Corrige tu reseña' : 'Corrige tu sugerencia') : res ? 'Nueva reseña' : 'Nueva sugerencia'}</h2>
+    ${dev ? `<div class="nota-maestro"><span>✏️ ${esc(dev.moderadaPor || 'Tu maestro/a')} te dice:</span><b>${esc(dev.nota)}</b></div>` : ''}
     ${res ? `<label>Título del libro</label><input id="fLibro" maxlength="100">
       <label>Autor o autora</label><input id="fAutor" maxlength="80" placeholder="Si no lo sabes, déjalo en blanco">
       <label>¿Cuánto te ha gustado?</label><div class="selector-estrellas" id="fEst">${[1,2,3,4,5].map(n => `<button data-n="${n}" onclick="ponerEstrellas(${n})">★</button>`).join('')}</div>
@@ -920,13 +952,26 @@ function nuevoMensaje(){
     : `<label>Título</label><input id="fTitulo" maxlength="80" placeholder="Por ejemplo: más libros de dinosaurios">
       <label>Tu sugerencia</label><textarea id="fTexto" maxlength="1000"></textarea>`}
     ${!esMaestro() ? '<p class="ayuda">Un maestro o maestra lo revisará antes de publicarlo.</p>' : ''}
-    <button class="btn" id="fEnviar" onclick="enviarMensaje(${res})">Enviar</button>`);
+    <button class="btn" id="fEnviar" onclick="enviarMensaje(${res}${dev ? `,'${dev.id}'` : ''})">${dev ? 'Volver a enviar' : 'Enviar'}</button>`);
   ponerEstrellas.n = 0;
+  if (dev) {
+    if (res) { $('#fLibro').value = dev.libro || ''; $('#fAutor').value = dev.autorLibro && dev.autorLibro !== '-' ? dev.autorLibro : ''; ponerEstrellas(+dev.valoracion || 0); }
+    else $('#fTitulo').value = dev.titulo || '';
+    $('#fTexto').value = dev.texto || '';
+  }
+}
+function corregir(i){ const d = S.devueltos[i]; if (d) formMensaje(d._t === 'resena', d); }
+function verDevueltos(){
+  if (S.devueltos.length === 1) return corregir(0);
+  abrirHoja(`<h2>Mensajes para corregir</h2><p class="ayuda">Tu maestro o maestra te ha devuelto estos mensajes. Corrígelos y vuelve a enviarlos.</p>
+    ${S.devueltos.map((d, i) => `<button class="card item" style="margin-top:12px" onclick="corregir(${i})"><h3>${esc(d._t === 'resena' ? '📖 ' + d.libro : '💡 ' + d.titulo)}</h3>
+      <p>✏️ ${esc(d.nota)}</p></button>`).join('')}`);
 }
 function ponerEstrellas(n){ ponerEstrellas.n = n; document.querySelectorAll('#fEst button').forEach(b => b.classList.toggle('on', +b.dataset.n <= n)); }
 
-async function enviarMensaje(res){
-  const quien = esMaestro() ? { token: S.sesion.token } : { codigoClase: alumno().codigoClase, alias: alumno().alias };
+async function enviarMensaje(res, reenviarId){
+  const quien = esMaestro() ? { token: S.sesion.token } : { codigoClase: alumno().codigoClase, alias: alumno().alias, dispositivo: idDispositivo() };
+  if (reenviarId) quien.reenviarId = reenviarId;
   const datos = res
     ? { libro: $('#fLibro').value, autorLibro: $('#fAutor').value.trim() || '-', valoracion: ponerEstrellas.n, texto: $('#fTexto').value }
     : { titulo: $('#fTitulo').value, texto: $('#fTexto').value };
@@ -934,8 +979,11 @@ async function enviarMensaje(res){
   if (S.demo) {
     const falta = res ? (!datos.libro.trim() ? 'título del libro' : !datos.texto.trim() ? 'reseña' : '') : (!datos.titulo.trim() ? 'título' : !datos.texto.trim() ? 'texto' : '');
     if (falta) { aviso('Falta el campo «' + falta + '».', true); return; }
-    S.demoMsgs.unshift(Object.assign({ _t: res ? 'resena' : 'sugerencia', id: 'DEMO' + Date.now(), demo: true, estado: 'pendiente', tipoAutor: 'alumno',
+    const previo = reenviarId && S.demoMsgs.find(x => x.id === reenviarId);
+    if (previo) Object.assign(previo, datos, { estado: 'pendiente', revisiones: (previo.revisiones || 0) + 1 });
+    else S.demoMsgs.unshift(Object.assign({ _t: res ? 'resena' : 'sugerencia', id: 'DEMO' + Date.now(), demo: true, estado: 'pendiente', tipoAutor: 'alumno',
       alias: ALUMNO_DEMO.alias, clase: ALUMNO_DEMO.clase, creada: S.estado.ahora.fecha + ' ' + S.estado.ahora.hora }, datos));
+    await cargarDevueltos();
     guardar('bib_demoMsgs', S.demoMsgs); cerrarHoja();
     aviso('¡Enviado! Se publicará cuando lo revisen ✓'); pintar(); return;
   }
@@ -943,9 +991,9 @@ async function enviarMensaje(res){
   try {
     const j = await api(res ? 'enviarResena' : 'enviarSugerencia', Object.assign(quien, datos), true);
     cerrarHoja();
-    aviso(j.estado === 'aprobada' ? 'Publicado ✓' : '¡Enviado! Se publicará cuando lo revisen ✓');
-    await cargarPublicas(); pintar();
-  } catch(e){ aviso(e.message, true); b.disabled = false; b.textContent = 'Enviar'; }
+    aviso(j.estado === 'aprobada' ? 'Publicado ✓' : reenviarId ? '¡Corregido y enviado! ✓' : '¡Enviado! Se publicará cuando lo revisen ✓');
+    await Promise.all([cargarPublicas(), cargarDevueltos()]); pintar();
+  } catch(e){ aviso(e.message, true); b.disabled = false; b.textContent = reenviarId ? 'Volver a enviar' : 'Enviar'; if (/ya no se puede corregir/.test(e.message)) { await cargarDevueltos(); pintar(); } }
 }
 
 /* ============ PERFIL ============ */
@@ -990,8 +1038,9 @@ function guardarAlumno(){
   const codigoClase = $('#aCod').value.trim().toUpperCase(), alias = $('#aAlias').value.trim();
   if (!codigoClase || !alias) { aviso('Rellena los dos campos', true); return; }
   S.alumno = { codigoClase, alias }; guardar('bib_alumno', S.alumno); cerrarHoja(); pintar(); aviso('¡Hola, ' + alias + '!');
+  cargarDevueltos().then(pintar);
 }
-function salirAlumno(){ S.alumno = null; guardar('bib_alumno', null); pintar(); }
+function salirAlumno(){ S.devueltos = []; S.alumno = null; guardar('bib_alumno', null); pintar(); }
 
 function formMaestro(modo){
   const reg = modo === 'registro';
@@ -1033,8 +1082,10 @@ function perfilMaestro(){
           <b>${esc(x._t === 'resena' ? '📖 ' + x.libro : '💡 ' + x.titulo)}</b>${x._t === 'resena' ? ` <span class="estrellas">${estrellas(+x.valoracion)}</span>` : ''}
           <p style="font-size:14px;color:var(--tinta2);margin-top:4px;white-space:pre-wrap">${esc(x.texto)}</p>
           <div class="meta" style="margin-top:4px">${esc(x.alias)} · ${cl(x.clase)} · ${fechaCorta(x.creada)}${x.demo ? ' · <span class="tag-demo">ejemplo</span>' : p.todas && !x.mia ? ' · <b>de otra clase</b>' : ''}</div>
-          <div style="display:flex;gap:8px;margin-top:10px">
+          ${+x.revisiones ? `<div class="corregido">🔁 Corregido por el alumno${+x.revisiones > 1 ? ` (${x.revisiones}.ª vez)` : ''}. Le pediste: «${esc(x.nota)}»</div>` : ''}
+          <div class="tres-botones">
             <button class="btn-peq" onclick="moderar('${x._t}','${x.id}','aprobada')">Publicar</button>
+            <button class="btn-peq oro" onclick="formDevolver('${x._t}','${x.id}')">Devolver</button>
             <button class="btn-peq peligro" onclick="moderar('${x._t}','${x.id}','rechazada')">Descartar</button></div></div>`).join('')
         : '<p class="ayuda">No hay nada pendiente.</p>'}
     </div>
@@ -1054,7 +1105,7 @@ function perfilMaestro(){
 function verAlumno(codigo, i){
   const c = (S.clases || []).concat(S.clasesAntiguas || []).find(x => x.codigo === codigo || x.nombre === codigo); if (!c) return;
   const a = c.participantes[i];
-  const est = { aprobada: ['Publicado', 'libre'], pendiente: ['Pendiente', 'neutra-c'], rechazada: ['Descartado', 'ocupada'] };
+  const est = { aprobada: ['Publicado', 'libre'], pendiente: ['Pendiente', 'neutra-c'], rechazada: ['Descartado', 'ocupada'], devuelta: ['Devuelto', 'devuelto-p'] };
   const items = a.mensajes || [];
   abrirHoja(`<h2>${esc(a.alias)}</h2>
     <p class="ayuda">${cl(c.nombre)} · ${a.envios === 1 ? '1 mensaje' : a.envios + ' mensajes'} · último el ${fechaCorta(a.ultimo)}</p>
@@ -1069,7 +1120,8 @@ function verAlumno(codigo, i){
 }
 
 function entrarDemo(){
-  S.demo = true; guardar('bib_demo', true); S.vista = 'inicio'; window.scrollTo(0, 0); pintar();
+  S.demo = true; guardar('bib_demo', true); S.vista = 'inicio'; window.scrollTo(0, 0);
+  S.devueltos = S.demoMsgs.filter(x => x.estado === 'devuelta'); pintar();
   aviso('Estás viendo la app como un alumno');
 }
 function salirDemo(){
@@ -1107,7 +1159,8 @@ function vGuia(){
     ${paso(6, 'Elegir tus clases y dar el código', `<p>En <b>Perfil → Mis clases</b>, toca las clases en las que das clase (Infantil, 1.<sup>er</sup> ciclo, 2.º ciclo, 3.<sup>er</sup> ciclo, ESO, Aula específica). Quedan marcadas con ✓.</p>
       <ul><li>Aparecerán como botones al <b>reservar</b> y recibirás para revisar lo que escriba su alumnado.</li><li>Cada clase tiene <b>un código</b> para todo su alumnado. Dalo <b>en clase</b> (en la pizarra, por ejemplo).</li><li>Cada niño entra en <b>Perfil → Alumno/a</b> con ese código y su nombre e inicial, <b>sin apellidos</b> (p. ej. «Lucía M.»).</li><li>Debajo de cada clase verás <b>qué alumnos han participado</b>. <b>Toca un nombre</b> para leer lo que ha escrito.</li><li>El número de alumnos se corrige tocando <b>«✏️»</b>; el ranking lo usa para comparar clases.</li><li>Si el código se difunde fuera de clase, pulsa <b>Cambiar código</b>: el anterior deja de funcionar.</li></ul>`, 'clases')}
     ${paso(7, 'Revisar comentarios del alumnado', `<p>Lo que escribe el alumnado <b>no se publica hasta que lo revisas</b>. Cuando haya algo pendiente de tus clases, verás un aviso magenta arriba del todo en <b>Inicio</b>.</p>
-      <p>Púlsalo y elige <b>Publicar</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>
+      <p>Púlsalo y elige <b>Publicar</b>, <b>Devolver</b> o <b>Descartar</b>. Solo ves lo que llega con los códigos de tus clases.</p>
+      <p>Si tiene faltas o está incompleto, pulsa <b>Devolver</b>: elige una frase («Revisa la ortografía y vuelve a enviarlo», «Revisa las tildes»…) o escribe la tuya. El alumno lo verá en su app, lo corregirá y te volverá a llegar marcado como <b>«🔁 Corregido»</b>.</p>
       <p>Si algo ya publicado no debería estar, ábrelo en el <b>Buzón</b> y pulsa <b>Retirar publicación</b>.</p>`, 'revisar')}
     ${paso(8, 'Lo que ve tu alumnado', `<p>El alumnado tiene una app más sencilla, <b>sin la pestaña de reservas</b>. En su Inicio ve:</p>
       <ul><li>Un saludo con su nombre y las <b>efemérides próximas</b>.</li><li>El <b>libro del mes</b>: el que más reseñas ha recibido y, si hay empate, el mejor valorado.</li><li>El <b>ranking de clases más lectoras</b>: gana la clase con más reseñas y sugerencias <b>publicadas por alumno</b>, así las clases pequeñas compiten igual. Se reinicia cada mes. Debajo del ranking, <b>«¿Cómo se calcula?»</b> lo explica con un ejemplo de castañas.</li></ul>
@@ -1249,15 +1302,36 @@ async function retirarPublicacion(tipo, id){
     await cargarPublicas(); pintar(); }
   catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); }
 }
-async function moderar(tipo, id, decision){
+const FRASES_DEVOLVER = [
+  'Revisa la ortografía y vuelve a enviarlo.',
+  'Revisa las mayúsculas y los puntos.',
+  'Revisa las tildes.',
+  'Cuéntanos un poco más.',
+  'Escríbelo con tus propias palabras.'
+];
+function formDevolver(tipo, id){
+  abrirHoja(`<h2>Devolver al alumno</h2>
+    <p class="ayuda">El alumno verá este mensaje en su app, podrá corregirlo y volver a enviarlo.</p>
+    <div class="chips" style="margin-top:12px">${FRASES_DEVOLVER.map(f => `<button class="chip" onclick="$('#dNota').value=this.textContent;document.querySelectorAll('#hoja .chips .chip').forEach(c=>c.classList.toggle('on',c===this))">${f}</button>`).join('')}</div>
+    <label>Mensaje para el alumno</label><textarea id="dNota" maxlength="200" style="min-height:80px">${FRASES_DEVOLVER[0]}</textarea>
+    <button class="btn" id="dBtn" onclick="devolver('${tipo}','${id}')">Devolver</button>`);
+}
+async function devolver(tipo, id){
+  const nota = $('#dNota').value.trim(); if (!nota) { aviso('Escribe qué tiene que revisar', true); return; }
+  $('#dBtn').disabled = true;
+  await moderar(tipo, id, 'devuelta', nota); cerrarHoja();
+}
+
+async function moderar(tipo, id, decision, nota){
+  const textos = { aprobada: 'Publicado ✓', rechazada: 'Descartado', devuelta: 'Devuelto al alumno ✓' };
   if (String(id).startsWith('DEMO')) {
-    const m = S.demoMsgs.find(x => x.id === id); if (m) m.estado = decision;
-    guardar('bib_demoMsgs', S.demoMsgs); aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado'); pintar(); return;
+    const m = S.demoMsgs.find(x => x.id === id); if (m) { m.estado = decision; if (nota) { m.nota = nota; m.moderadaPor = S.sesion.maestro.nombre; } }
+    guardar('bib_demoMsgs', S.demoMsgs); aviso(textos[decision]); pintar(); return;
   }
   try {
-    await api('moderar', { token: S.sesion.token, tipo, id, decision }, true);
-    aviso(decision === 'aprobada' ? 'Publicado ✓' : 'Descartado');
-  } catch(e){ aviso(e.message, true); }
+    await api('moderar', { token: S.sesion.token, tipo, id, decision, nota }, true);
+    aviso(textos[decision]);
+  } catch(e){ aviso(/Decisión no válida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); }
   await Promise.all([cargarPendientes(), cargarPublicas()]); pintar();
 }
 
