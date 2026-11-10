@@ -81,6 +81,12 @@
       "titulo": "Día de la Lectura en Andalucía"
     },
     {
+      "fecha": "2026-12-18",
+      "icono": "🎄",
+      "titulo": "Comida de Navidad 🍽️🎅",
+      "festiva": true
+    },
+    {
       "fecha": "2027-01-29",
       "icono": "🕊️",
       "titulo": "Día Escolar de la No Violencia y la Paz",

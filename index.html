@@ -196,6 +196,7 @@ textarea{min-height:120px;resize:vertical}
 .prox b{color:#F3D27A}
 .dia .num{display:flex;justify-content:space-between;align-items:flex-start}
 .efe{color:var(--oro);font-size:13px;line-height:1}
+.efe-fiesta{font-size:15px}
 .efe-banda{background:#FBF3DC;border:1px solid #F0DDA4;border-radius:14px;padding:10px 14px;margin:8px 0 4px}
 .efe-banda b{display:block;color:var(--tinta)}
 .efe-banda span{display:block;font-size:14px;color:var(--tinta2);margin-top:2px}
@@ -302,7 +303,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.31';
+const VERSION_APP = '1.32';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -794,7 +795,7 @@ function vCalendario(){
     const delDia = (reservas || []).filter(r => r.fecha === f);
     const barras = [1,2,3,4].map(n => `<i class="${delDia.some(r => r.tramo === n) ? 'o' : ''}"></i>`).join('');
     const cls = ['dia', f === S.estado.ahora.fecha ? 'hoy' : '', f < S.estado.ahora.fecha ? 'pasado' : '', fest ? 'fest' : ''].join(' ');
-    celdas += `<button class="${cls}" onclick="abrirDia('${f}')"><span class="num">${d}${efe.length ? '<span class="efe">★</span>' : ''}</span>
+    celdas += `<button class="${cls}" onclick="abrirDia('${f}')"><span class="num">${d}${efe.length ? (efe.some(e => e.festiva) ? `<span class="efe efe-fiesta">${esc(efe.find(e => e.festiva).icono || '🎉')}</span>` : '<span class="efe">★</span>') : ''}</span>
       ${fest ? `<span class="fl">${esc(fest.corto)}</span>` : `<span class="barras">${barras}</span>`}</button>`;
   }
   return cabecera('Reservas') + navMes(y, m) + `<div class="cal${esperando ? ' esperando' : ''}">${celdas}</div>
