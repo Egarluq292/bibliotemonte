@@ -276,6 +276,19 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 .b-caja h2:has(+ .b-sub){margin-top:4px}
 .b-flecha{text-align:center;font-size:30px;color:var(--oro);margin-top:6px;animation:bote 1.2s ease-in-out infinite}
 @keyframes bote{50%{transform:translateY(6px)}}
+.plegable{padding:0}
+.fila-codigo{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+.nowrap{white-space:nowrap;flex-shrink:0}
+.pleg-cab{width:100%;display:flex;align-items:center;gap:12px;padding:16px 18px;text-align:left}
+.pleg-txt{flex:1;min-width:0}
+.pleg-txt b{display:block;font-size:16px}
+.pleg-txt .ayuda{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pleg-flecha{font-size:24px;color:var(--suave);transition:transform .2s;line-height:1}
+.plegable.abierto > .pleg-cab .pleg-flecha{transform:rotate(90deg)}
+.pleg-cuerpo{padding:0 18px 16px}
+.pleg-int{border:1.5px solid var(--linea);border-radius:16px;margin-top:10px;background:var(--papel)}
+.pleg-int .pleg-cab{padding:13px 14px}
+.pleg-int .pleg-cuerpo{padding:0 14px 14px}
 .cargando{text-align:center;color:var(--suave);padding:60px 0}
 </style>
 </head>
@@ -303,7 +316,7 @@ sup{font-size:.6em;line-height:0;vertical-align:.6em;margin-left:.02em}
 /* ============ CONFIGURACIÓN ============ */
 const API = 'https://script.google.com/macros/s/AKfycbz81OyJGv_nYIVvf2obFFmcTHuE472UoAX05WH8zrBownnmmddSbHULyt2vV2fO0F4u/exec';
 const NOMBRE_CENTRO = 'CEIP Fernando IV';
-const VERSION_APP = '1.32';
+const VERSION_APP = '1.33';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -324,7 +337,8 @@ const S = {
   demo: !!leer('bib_demo'),
   ejemplo: !!leer('bib_ejemplo'),
   demoMsgs: leer('bib_demoMsgs') || [],
-  devueltos: [],   // maestro: {token, maestro:{id,nombre,rol}}
+  devueltos: [],
+  abiertos: {},          // tarjetas plegables abiertas en esta sesión   // maestro: {token, maestro:{id,nombre,rol}}
   alumno: leer('bib_alumno')    // alumno: {codigoClase, alias}
 };
 
@@ -1112,12 +1126,12 @@ function perfilMaestro(){
         : '<p class="ayuda">No hay nada pendiente.</p>'}
     </div>
 
-    <div class="card"><div class="etq">Mis clases</div>
-      <p class="ayuda">Marca las clases en las que das clase: recibirás lo que escriba su alumnado y aparecerán al reservar.</p>
-      <div id="clases">${pintarClases()}</div>
-    </div>
+    ${plegable('clases', '📚 Mis clases', resumenMisClases(), `<p class="ayuda">Marca las clases en las que das clase: recibirás lo que escriba su alumnado y aparecerán al reservar.</p>
+      <div id="clases">${pintarClases()}</div>`)}
 
-    ${m.rol === 'admin' ? `<div class="card"><div class="etq">Administración</div><div id="admin">${pintarAdmin()}</div></div>` : ''}
+    ${m.rol === 'admin' ? plegable('admin', '⚙️ Administración', 'Docentes y alumnado del centro', `
+      ${plegable('docentes', '👩‍🏫 Docentes', S.admin && S.admin.maestros ? S.admin.maestros.length + ' dados de alta · código de centro' : 'Código de centro y altas', `<div id="admin">${pintarAdmin()}</div>`, true)}
+      ${plegable('alumnado', '🎒 Alumnado', resumenAlumnado(), `<div id="alumnado">${pintarAlumnado()}</div>`, true)}`) : ''}
 
     <button class="btn sec" onclick="formClave()">Cambiar mi clave</button>
     <button class="btn sec" style="margin-top:10px" onclick="salirMaestro()">Cerrar sesión</button>`;
@@ -1204,15 +1218,15 @@ function pintarAdmin(){
   if (!S.admin) { cargarAdmin(); return '<p class="ayuda">Cargando…</p>'; }
   if (S.admin.error) return `<p class="ayuda">${esc(S.admin.error)}</p>`;
   const yo = S.sesion.maestro.id;
-  return `<p class="ayuda">Código de centro (dáselo a los maestros para que se den de alta):</p>
+  return `<p class="ayuda">Código de centro (dáselo a los docentes para que se den de alta):</p>
     <div class="fila" style="margin-top:8px"><span class="codigo" style="font-size:18px">${esc(S.admin.codigoCentro)}</span>
       <button class="btn-peq sec" onclick="cambiarCodigoCentro()">Cambiar</button></div>
-    <p class="ayuda" style="margin-top:6px">Cámbialo si se difunde. Los maestros ya dados de alta no se ven afectados.</p>
+    <p class="ayuda" style="margin-top:6px">Cámbialo si se difunde. Los docentes ya dados de alta no se ven afectados.</p>
     <div class="linea"></div>
-    <div class="fila"><b>Maestros (${S.admin.maestros.length})</b></div>
+    <div class="fila"><b>Docentes (${S.admin.maestros.length})</b></div>
     ${S.admin.maestros.map(x => `<div style="padding:12px 0;border-bottom:1px solid var(--linea)">
         <div class="fila"><div><b>${esc(x.nombre)}</b>${x.id === yo ? ' <span class="ayuda">(tú)</span>' : ''}
-          <div class="meta" style="margin-top:2px">${x.rol === 'admin' ? 'Administrador' : 'Maestro/a'} · alta ${fechaCorta(x.alta)}</div></div></div>
+          <div class="meta" style="margin-top:2px">${x.rol === 'admin' ? 'Administrador' : 'Docente'} · alta ${fechaCorta(x.alta)}</div></div></div>
         ${x.id === yo ? '' : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">
           <button class="btn-peq sec ajusta" onclick="restablecerClave('${x.id}')">Nueva clave</button>
           <button class="btn-peq sec ajusta" onclick="cambiarRol('${x.id}','${x.rol === 'admin' ? 'maestro' : 'admin'}')">${x.rol === 'admin' ? 'Quitar admin' : 'Hacer admin'}</button>
@@ -1222,7 +1236,7 @@ function pintarAdmin(){
 async function cargarAdmin(){
   try { S.admin = await api('adminInfo', { token: S.sesion.token }, true); }
   catch(e){ S.admin = { error: /desconocida/.test(e.message) ? 'Falta actualizar el servidor en Google Apps Script.' : e.message }; }
-  const el = $('#admin'); if (el) el.innerHTML = pintarAdmin();
+  if (S.vista === 'perfil') pintar();
 }
 const nombreMaestro = id => { const m = S.admin && S.admin.maestros && S.admin.maestros.find(x => x.id === id); return m ? esc(m.nombre) : 'este maestro'; };
 async function accionAdmin(accion, datos, opciones){
@@ -1256,30 +1270,60 @@ async function cambiarClave(){
   catch(e){ aviso(/desconocida/.test(e.message) ? 'Falta actualizar el servidor' : e.message, true); b.disabled = false; }
 }
 
+/* ---- Tarjetas plegables (cerradas por defecto) ---- */
+function plegable(clave, titulo, resumen, contenido, interior){
+  const abierto = !!S.abiertos[clave];
+  return `<div class="${interior ? 'pleg-int' : 'card'} plegable${abierto ? ' abierto' : ''}">
+    <button class="pleg-cab" onclick="plegar('${clave}')" aria-expanded="${abierto}">
+      <span class="pleg-txt"><b>${titulo}</b><span class="ayuda">${resumen}</span></span>
+      <span class="pleg-flecha">›</span></button>
+    ${abierto ? `<div class="pleg-cuerpo">${contenido}</div>` : ''}</div>`;
+}
+function plegar(clave){ S.abiertos[clave] = !S.abiertos[clave]; pintar(); }
+function resumenMisClases(){
+  if (!S.clases) return 'Cargando…';
+  const mias = S.clases.filter(c => c.mia).map(c => cl(c.nombre));
+  return mias.length ? mias.join(' · ') : 'Aún no has marcado ninguna';
+}
+function resumenAlumnado(){
+  if (!S.clases) return 'Cargando…';
+  const n = S.clases.reduce((t, c) => t + (c.participantes || []).length, 0);
+  return `${S.clases.length} clases · ${n === 1 ? '1 alumno/a ha participado' : n + ' alumnos/as han participado'}`;
+}
+
+/** Una clase con su código, número de alumnos y alumnado participante. */
+function filaClase(c){
+  const part = c.participantes || [];
+  const lista = part.length
+    ? `<div class="part"><div class="ayuda">${part.length === 1 ? 'Ha participado 1 alumno/a' : `Han participado ${part.length} alumnos/as`}. Toca un nombre para ver lo que ha escrito.</div>
+        <div class="chips">${part.map((a, i) => `<button class="chip" onclick="verAlumno('${esc(c.codigo || c.nombre)}',${i})">${esc(a.alias)} <small>${a.envios}</small></button>`).join('')}</div></div>`
+    : '<div class="part ayuda">Aún no ha escrito nadie de esta clase.</div>';
+  return `<div style="padding:12px 0;border-top:1px solid var(--linea)">
+    <div class="fila"><b>${cl(c.nombre)}</b><button class="ayuda num-al nowrap" onclick="formAlumnos('${esc(c.codigo)}')">${c.alumnos || '¿?'} alumnos ✏️</button></div>
+    <div class="fila" style="margin-top:8px"><span class="codigo">${esc(c.codigo)}</span>
+      <button class="btn-peq sec nowrap" onclick="cambiarCodigoClase('${esc(c.nombre)}')">Cambiar código</button></div>
+    ${lista}</div>`;
+}
+
+/** Administración → Alumnado: todas las clases del centro y los códigos antiguos. */
+function pintarAlumnado(){
+  if (!S.clases) return '<p class="ayuda">Cargando…</p>';
+  const antiguas = S.clasesAntiguas || [];
+  return `<p class="ayuda">Todas las clases del centro, con su código y el alumnado que ha participado.</p>
+    ${S.clases.map(filaClase).join('')}
+    ${antiguas.length ? `<div class="linea"></div><p class="etq">Códigos antiguos</p><p class="ayuda" style="margin-top:4px">Ya no funcionan. Elimínalos para que sus mensajes de prueba no cuenten.</p>
+      ${antiguas.map(c => `<div class="fila clase-off" style="padding:10px 0;border-bottom:1px solid var(--linea)"><div><b>${cl(c.nombre)}</b><div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span>
+        <span class="ayuda">${(n => n === 1 ? '1 mensaje' : n + ' mensajes')(c.participantes.reduce((t, a) => t + a.envios, 0))}</span></div></div>
+        <button class="btn-peq peligro" style="opacity:1" onclick="eliminarClase('${esc(c.codigo)}')">Eliminar</button></div>`).join('')}` : ''}`;
+}
+
 function pintarClases(){
   if (!S.clases) return '<p class="ayuda">Cargando…</p>';
   if (S.clases.length && S.clases[0].mia === undefined) return '<p class="ayuda">Falta actualizar el servidor en Google Apps Script.</p>';
   const selector = `<div class="chips selector">${S.clases.map(c => `<button class="chip${c.mia ? ' on' : ''}" onclick="alternarClase('${esc(c.nombre)}')">${c.mia ? '✓ ' : ''}${cl(c.nombre)}</button>`).join('')}</div>`;
-  const visibles = S.clases.filter(c => c.mia || esAdmin());
-  const fila = c => {
-    const part = c.participantes || [];
-    const lista = part.length
-      ? `<div class="part"><div class="ayuda">${part.length === 1 ? 'Ha participado 1 alumno/a' : `Han participado ${part.length} alumnos/as`}. Toca un nombre para ver lo que ha escrito.</div>
-          <div class="chips">${part.map((a, i) => `<button class="chip" onclick="verAlumno('${esc(c.codigo || c.nombre)}',${i})">${esc(a.alias)} <small>${a.envios}</small></button>`).join('')}</div></div>`
-      : '<div class="part ayuda">Aún no ha escrito nadie de esta clase.</div>';
-    return `<div style="padding:12px 0;border-top:1px solid var(--linea)">
-      <div class="fila"><div><b>${cl(c.nombre)}</b> <button class="ayuda num-al" onclick="formAlumnos('${esc(c.codigo)}')">· ${c.alumnos || '¿?'} alumnos ✏️</button>${!c.mia ? ' <span class="ayuda">(no la impartes)</span>' : ''}
-        <div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span></div></div>
-        <button class="btn-peq sec" onclick="cambiarCodigoClase('${esc(c.nombre)}')">Cambiar código</button></div>
-      ${lista}</div>`;
-  };
-  const antiguas = (S.clasesAntiguas || []);
+  const mias = S.clases.filter(c => c.mia);
   return selector
-    + (visibles.length ? `<p class="ayuda" style="margin:14px 0 2px">Da a cada clase su código para que el alumnado pueda escribir. Si un código se difunde fuera de clase, pulsa «Cambiar código».</p>${visibles.map(fila).join('')}` : '<p class="ayuda" style="margin-top:12px">Aún no has marcado ninguna clase.</p>')
-    + (antiguas.length ? `<div class="linea"></div><p class="etq">Códigos antiguos</p><p class="ayuda" style="margin-top:4px">Ya no funcionan. Elimínalos para que sus mensajes de prueba no cuenten.</p>
-        ${antiguas.map(c => `<div class="fila clase-off" style="padding:10px 0;border-bottom:1px solid var(--linea)"><div><b>${cl(c.nombre)}</b><div style="margin-top:4px"><span class="codigo">${esc(c.codigo)}</span>
-          <span class="ayuda">${c.participantes.reduce((t, a) => t + a.envios, 0)} mensajes</span></div></div>
-          <button class="btn-peq peligro" style="opacity:1" onclick="eliminarClase('${esc(c.codigo)}')">Eliminar</button></div>`).join('')}` : '');
+    + (mias.length ? `<p class="ayuda" style="margin:14px 0 2px">Da a cada clase su código para que el alumnado pueda escribir. Si un código se difunde fuera de clase, pulsa «Cambiar código».</p>${mias.map(filaClase).join('')}` : '<p class="ayuda" style="margin-top:12px">Toca arriba las clases en las que das clase.</p>');
 }
 async function alternarClase(nombre){
   const elegidas = S.clases.filter(c => c.nombre === nombre ? !c.mia : c.mia).map(c => c.nombre);
@@ -1309,6 +1353,7 @@ async function guardarAlumnos(codigo, b){
 async function cargarClases(){
   if (!esMaestro()) return;
   try { const j = await api('listarClases', { token: S.sesion.token }); S.clases = j.clases; S.clasesAntiguas = j.antiguas || []; } catch(e){ S.clases = []; }
+  if (S.vista === 'perfil') { pintar(); return; }
   const el = $('#clases'); if (el) el.innerHTML = pintarClases();
 }
 async function eliminarClase(codigo){
